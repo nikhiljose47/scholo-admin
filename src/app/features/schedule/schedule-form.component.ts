@@ -4,17 +4,17 @@ import { Router, ActivatedRoute, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { ScheduleService, toISTDateStr, toISTTimeStr } from './schedule.service';
 import { SyllabusService } from './syllabus.service';
-import { CentersService } from '../centers/centers.service';
-import { BatchesService } from '../batches/batches.service';
 import { UsersDirectoryService } from '../../core/services/users/users-directory.service';
 import { AdminAuthService } from '../../core/services/auth/admin-auth.service';
 import { UploadService, MAX_LIVE_IMAGES, slotFromUrl } from '../../core/services/storage/upload.service';
 import { UserModel } from '../../models/user/user.model';
-import { CenterDoc } from '../../models/center/center.model';
-import { BatchDoc } from '../../models/batch/batch.model';
 import { ClassSyllabus, Subject, Chapter, SyllabusIndexEntry } from '../../models/syllabus/syllabus.model';
 
 const DURATION_OPTIONS = [30, 45, 60, 90, 120];
+
+/** Fixed placeholders until per-center management is used. 'default' matches legacy meetings. */
+const DEFAULT_CENTER_ID = 'scholo-basic';
+const DEFAULT_BATCH_ID = 'default';
 
 interface ImageItem {
   /** Existing image: download URL + storage slot. New image: the encoded blob only. */
@@ -37,24 +37,17 @@ interface ImageItem {
 
       <form [formGroup]="form" (ngSubmit)="submit()" class="form-card">
 
-        <!-- Center & Batch -->
+        <!-- Center & Batch: fixed for now (no per-center management yet) -->
         <div class="section" *ngIf="!isEdit()">
           <h3>Center & Batch</h3>
           <div class="fields">
             <div class="field">
               <label>Center</label>
-              <select formControlName="centerId" (change)="onCenterChange()">
-                <option value="">— Select center —</option>
-                <option *ngFor="let c of centers()" [value]="c.centerId">{{ c.name }}</option>
-              </select>
+              <input type="text" [value]="defaultCenterName" readonly />
             </div>
             <div class="field">
-              <label>Batch <span class="hint">(optional)</span></label>
-              <select formControlName="batchId" [disabled]="!form.value.centerId || batches().length === 0">
-                <option value="">No specific batch</option>
-                <option *ngFor="let b of batches()" [value]="b.batchId">{{ b.name }}</option>
-              </select>
-              <small *ngIf="form.value.centerId && batches().length === 0">No batches found for this center yet.</small>
+              <label>Batch</label>
+              <input type="text" [value]="defaultBatchName" readonly />
             </div>
           </div>
         </div>
@@ -278,8 +271,6 @@ export class ScheduleFormComponent implements OnInit {
   private fb = inject(FormBuilder);
   private service = inject(ScheduleService);
   private syllabusService = inject(SyllabusService);
-  private centersService = inject(CentersService);
-  private batchesService = inject(BatchesService);
   private directory = inject(UsersDirectoryService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
@@ -291,8 +282,8 @@ export class ScheduleFormComponent implements OnInit {
   syllabusLoading = signal(false);
   error = signal<string | null>(null);
 
-  centers = signal<CenterDoc[]>([]);
-  batches = signal<BatchDoc[]>([]);
+  readonly defaultCenterName = 'Scholo Basic';
+  readonly defaultBatchName = 'Default batch';
   teachers = signal<UserModel[]>([]);
 
   classOptions = signal<SyllabusIndexEntry[]>([]);
@@ -320,8 +311,6 @@ export class ScheduleFormComponent implements OnInit {
     this.auth.isAdmin() || !this.isEdit() || this.meetingTeacherId() === this.auth.uid);
 
   form = this.fb.nonNullable.group({
-    centerId: [''],
-    batchId: [''],
     classId: ['', Validators.required],
     subjectCode: ['', Validators.required],
     chapterCode: ['', Validators.required],
@@ -398,23 +387,9 @@ export class ScheduleFormComponent implements OnInit {
       }
 
       // Only admins need the full teacher directory (to assign a session to someone else).
-      const centersPromise = this.centersService.listCentersForCurrentUser();
-      const teachersPromise = this.auth.isAdmin() ? this.directory.listTeachers() : Promise.resolve({ ok: true, data: [] as UserModel[] });
-
-      const [centersRes, teachersRes] = await Promise.all([centersPromise, teachersPromise]);
-      this.centers.set(centersRes.data ?? []);
+      const teachersRes = this.auth.isAdmin() ? await this.directory.listTeachers() : { ok: true, data: [] as UserModel[] };
       this.teachers.set(teachersRes.data ?? []);
     }
-  }
-
-  async onCenterChange() {
-    const centerId = this.form.get('centerId')?.value;
-    this.form.patchValue({ batchId: '' });
-    this.batches.set([]);
-    if (!centerId) return;
-
-    const res = await this.batchesService.listBatchesForCurrentUser(centerId);
-    this.batches.set(res.data ?? []);
   }
 
   async onClassChange() {
@@ -583,8 +558,8 @@ export class ScheduleFormComponent implements OnInit {
         className: classEntry?.className ?? v.classId,
         subjectId: v.subjectCode,
         subjectName: subject?.name ?? v.subjectCode,
-        batchId: v.batchId || 'default',
-        centerId: v.centerId,
+        batchId: DEFAULT_BATCH_ID,
+        centerId: DEFAULT_CENTER_ID,
         chapterCode: v.chapterCode,
         chapterName: chapter?.name ?? v.chapterCode,
         meetLink: v.meetLink,
