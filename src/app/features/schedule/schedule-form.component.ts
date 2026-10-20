@@ -69,6 +69,7 @@ interface ImageItem {
                 <option value="">— Select class —</option>
                 <option *ngFor="let c of classOptions()" [value]="c.classId">{{ c.className }}</option>
               </select>
+              <small class="error" *ngIf="classLoadError()">Couldn't load the class list from the syllabus server. Check your connection and that this site is allowed by content.scholo.co.in, then reload.</small>
             </div>
             <div class="field">
               <label>Subject *</label>
@@ -306,6 +307,7 @@ export class ScheduleFormComponent implements OnInit {
   readonly maxImages = MAX_LIVE_IMAGES;
   images = signal<ImageItem[]>([]);
   imageError = signal<string | null>(null);
+  classLoadError = signal(false);
   uploadProgress = signal<number | null>(null);
   /** Set once the meeting doc exists (after create) so a retry only redoes images. */
   createdId = signal<string | null>(null);
@@ -348,7 +350,12 @@ export class ScheduleFormComponent implements OnInit {
 
     // The syllabus index (class list) is needed either way: for the create
     // dropdown, or implicitly via loadClass() when editing.
-    this.classOptions.set(await this.syllabusService.listClasses());
+    try {
+      this.classOptions.set(await this.syllabusService.listClasses());
+    } catch {
+      // Don't let a syllabus outage (e.g. CORS/network) abort the rest of the form setup.
+      this.classLoadError.set(true);
+    }
 
     if (meetingId) {
       this.isEdit.set(true);
