@@ -8,6 +8,10 @@ import { SyllabusIndex, SyllabusIndexEntry, ClassSyllabus } from '../../models/s
 const INDEX_TTL = 60 * 60 * 1000; // 1 hour
 const CLASS_TTL = 60 * 60 * 1000;
 
+/** Gives the admin app its own CDN cache entries on content.scholo.co.in, so a copy cached
+ *  without CORS headers (e.g. from a plain browser visit) can never be served to it. */
+const CACHE_VARIANT = '?client=admin';
+
 /** Reads the same canonical syllabus catalog the live app uses
  *  (content.scholo.co.in, R2-hosted JSON) — never duplicated into Firestore. */
 @Injectable({ providedIn: 'root' })
@@ -18,7 +22,7 @@ export class SyllabusService {
   listClasses(): Promise<SyllabusIndexEntry[]> {
     return this.cache.get('syllabus:index', INDEX_TTL, async () => {
       const index = await firstValueFrom(
-        this.http.get<SyllabusIndex>(`${environment.syllabusApiBaseUrl}/index/syllabus-index.json`),
+        this.http.get<SyllabusIndex>(`${environment.syllabusApiBaseUrl}/index/syllabus-index.json${CACHE_VARIANT}`),
       );
       return index.classes ?? [];
     });
@@ -30,7 +34,7 @@ export class SyllabusService {
       const entry = entries.find(e => e.classId === classId);
       if (!entry) return null;
       return firstValueFrom(
-        this.http.get<ClassSyllabus>(`${environment.syllabusApiBaseUrl}/syllabus/${entry.file}`),
+        this.http.get<ClassSyllabus>(`${environment.syllabusApiBaseUrl}/syllabus/${entry.file}${CACHE_VARIANT}`),
       );
     });
   }
