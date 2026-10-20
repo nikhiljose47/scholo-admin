@@ -23,9 +23,21 @@ export class ClassProgressService {
     return res.data?.curChapterId ?? null;
   }
 
-  setCurrentChapter(classId: string, batchId: string, chapterId: string): Promise<FireResponse<void>> {
+  /** The tuition center (providers/{id}) a class belongs to, if linked. */
+  async getClassProviderId(classId: string): Promise<string | null> {
+    const res = await this.fs.getOnce<{ providerId?: string }>(`classes/${classId}`);
+    return res.data?.providerId ?? null;
+  }
+
+  async listProviders(): Promise<{ id: string; name?: string }[]> {
+    const res = await this.fs.getAllOnce<{ id: string; name?: string }>('providers');
+    return res.data ?? [];
+  }
+
+  setCurrentChapter(classId: string, batchId: string, chapterId: string, providerId?: string | null): Promise<FireResponse<void>> {
     return this.fs.setMerge(this.path(classId, batchId), {
       curChapterId: chapterId,
+      ...(providerId ? { providerId } : {}),
       progressUpdatedAt: this.fs.serverTimestamp(),
       progressUpdatedBy: this.auth.uid,
     });

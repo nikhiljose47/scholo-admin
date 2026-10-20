@@ -14,6 +14,8 @@ interface ClassGroup {
   key: string;
   classId: string;
   batchId: string;
+  providerId: string | null;
+  centerName: string;
   className: string;
   subjectName: string;
   chapters: Chapter[];
@@ -49,6 +51,11 @@ interface ClassGroup {
         <div class="chip"><strong>{{ upcomingTotal() }}</strong> upcoming sessions</div>
       </div>
 
+      <div class="filter" *ngIf="centers().length > 1">
+        <button class="pill" [class.on]="!centerFilter()" (click)="centerFilter.set('')">All centers</button>
+        <button class="pill" *ngFor="let c of centers()" [class.on]="centerFilter() === c" (click)="centerFilter.set(c)">🏫 {{ c }}</button>
+      </div>
+
       <div *ngIf="loading()" class="loading">Loading your classes…</div>
 
       <div *ngIf="!loading() && groups().length === 0" class="empty">
@@ -58,9 +65,10 @@ interface ClassGroup {
       </div>
 
       <div class="grid">
-        <article class="card" *ngFor="let g of groups()">
+        <article class="card" *ngFor="let g of visibleGroups()">
           <header class="card-head">
             <div>
+              <div class="center">🏫 {{ g.centerName }}</div>
               <h2>{{ g.className }}</h2>
               <div class="subject">{{ g.subjectName }}<span *ngIf="g.batchId !== 'default'"> · Batch {{ g.batchId }}</span></div>
             </div>
@@ -128,6 +136,10 @@ interface ClassGroup {
     .btn-ghost:disabled { color: #94a3b8; cursor: not-allowed; }
     .notice { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; }
     .notice.error { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
+    .filter { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    .pill { background: #fff; border: 1px solid #cbd5e1; border-radius: 20px; padding: 6px 14px; font-size: 13px; cursor: pointer; color: #475569; }
+    .pill.on { background: #3b82f6; border-color: #3b82f6; color: #fff; }
+    .center { font-size: 12px; font-weight: 600; color: #7c3aed; margin-bottom: 2px; }
     .summary { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
     .chip { background: #fff; padding: 8px 14px; border-radius: 20px; font-size: 13px; color: #475569; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
     .chip strong { color: #1e293b; font-size: 15px; }
@@ -176,6 +188,9 @@ export class ClassProgressComponent implements OnInit {
   loading = signal(true);
   groups = signal<ClassGroup[]>([]);
   toast = signal('');
+  centerFilter = signal('');
+  centers = computed(() => [...new Set(this.groups().map(g => g.centerName))].sort());
+  visibleGroups = computed(() => this.groups().filter(g => !this.centerFilter() || g.centerName === this.centerFilter()));
 
   /** Admins always; teachers only once an admin has granted canEditContent. */
   canEdit = computed(() => this.auth.isAdmin() || this.auth.userProfile()?.canEditContent === true);
@@ -198,18 +213,23 @@ export class ClassProgressComponent implements OnInit {
       byKey.set(key, [...(byKey.get(key) ?? []), m]);
     }
 
+    const providers = new Map((await this.progress.listProviders().catch(() => [])).map(p => [p.id, p.name || p.id]));
+
     const groups = await Promise.all([...byKey.entries()].map(async ([key, ms]): Promise<ClassGroup> => {
       const newest = ms[0];
       const batchId = newest.batchId || 'default';
-      const [classSyllabus, curCode] = await Promise.all([
+      const [classSyllabus, curCode, providerId] = await Promise.all([
         this.syllabus.loadClass(newest.classId).catch(() => null),
         this.progress.getCurrentChapter(newest.classId, batchId).catch(() => null),
+        this.progress.getClassProviderId(newest.classId).catch(() => null),
       ]);
       const subject = classSyllabus?.subjects.find(s => s.code === newest.subjectId) ?? classSyllabus?.subjects[0];
       return {
         key,
         classId: newest.classId,
         batchId,
+        providerId,
+        centerName: (providerId && providers.get(providerId)) || 'Unassigned center',
         className: newest.className ?? classSyllabus?.className ?? newest.classId,
         subjectName: newest.subjectName ?? subject?.name ?? '',
         chapters: (subject?.chapters ?? []).filter(c => c.enabled !== false),
@@ -258,7 +278,7 @@ export class ClassProgressComponent implements OnInit {
     const previous = g.curCode;
     this.toast.set('');
     this.patch(g.key, { curCode: code, saving: true }); // optimistic
-    const res = await this.progress.setCurrentChapter(g.classId, g.batchId, code);
+    const res = await this.progress.setCurrentChapter(g.classId, g.batchId, code, g.providerId);
     if (!res.ok) {
       this.patch(g.key, { curCode: previous });
       this.toast.set(`Couldn't save progress: ${res.message ?? 'permission denied'}`);
