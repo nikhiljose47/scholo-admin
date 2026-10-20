@@ -52,3 +52,17 @@ Only show `liveImages` while the class is live: `date <= now <= endAt`
 (the admin's `sessionState === 'live'`). Before the start and after the end, use the normal
 thumbnail (`imageSrc`). Files may be deleted by the lifecycle rule ~1 day after upload, so an image URL can 404
 for old meetings — always fall back gracefully. Order of the array is the intended animation order.
+
+## CORS for browser uploads
+
+`storage-cors.json` allows the admin app's origins to upload to the bucket. Add your custom admin domain to
+the `origin` list first (exact origins only, no wildcards), then apply:
+
+```
+gcloud storage buckets update gs://authentication-785fd.firebasestorage.app --cors-file=storage-cors.json
+# or: gsutil cors set storage-cors.json gs://authentication-785fd.firebasestorage.app
+```
+
+Caution: this **replaces** the bucket's whole CORS config. Check first with
+`gcloud storage buckets describe gs://authentication-785fd.firebasestorage.app --format="default(cors_config)"`
+and merge any existing origins (e.g. the other Scholo app's) into the file.
