@@ -1,0 +1,24 @@
+rules_version = '2';
+
+// MERGE these rules into the shared project's existing storage rules (do not replace
+// them wholesale — the other Scholo app may rely on other paths). Not deployed.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Temporary live-class thumbnails: live-class/{meetingId}/{1..4}.webp
+    match /live-class/{meetingId}/{file} {
+      allow read: if true;
+
+      allow write: if isStaff()
+                   && request.resource.contentType.matches('image/.*')
+                   && request.resource.size < 500 * 1024;
+
+      allow delete: if isStaff();
+    }
+
+    function isStaff() {
+      return request.auth != null
+        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ['admin', 'teacher'];
+    }
+  }
+}
