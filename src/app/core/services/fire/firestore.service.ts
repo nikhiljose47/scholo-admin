@@ -97,6 +97,16 @@ export class FirestoreService {
     }
   }
 
+  /** Create-or-update: merges the fields into the document, creating it if absent. */
+  async setMerge<T extends object>(path: string, data: T): Promise<FireResponse<void>> {
+    try {
+      await setDoc(doc(this.fs, path), data as DocumentData, { merge: true });
+      return { ok: true };
+    } catch (e: unknown) {
+      return { ok: false, message: (e as Error).message };
+    }
+  }
+
   async add<T extends object>(path: string, data: T): Promise<FireResponse<string>> {
     try {
       const ref = await addDoc(collection(this.fs, path), data);

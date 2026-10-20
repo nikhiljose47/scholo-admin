@@ -92,6 +92,38 @@ export const routes: Routes = [
         ],
       },
       {
+        path: 'progress',
+        loadComponent: () =>
+          import('./features/progress/class-progress.component').then(m => m.ClassProgressComponent),
+      },
+      {
+        path: 'syllabus',
+        loadComponent: () =>
+          import('./features/syllabus/syllabus-page.component').then(m => m.SyllabusPageComponent),
+      },
+      {
+        path: 'puzzles',
+        loadComponent: () =>
+          import('./features/syllabus/puzzles-page.component').then(m => m.PuzzlesPageComponent),
+      },
+      {
+        path: 'providers',
+        canActivate: [adminGuard],
+        loadComponent: () =>
+          import('./features/providers/providers-page.component').then(m => m.ProvidersPageComponent),
+      },
+      {
+        path: 'classes',
+        canActivate: [adminGuard],
+        loadComponent: () =>
+          import('./features/providers/classes-page.component').then(m => m.ClassesPageComponent),
+      },
+      {
+        path: 'materials',
+        loadComponent: () =>
+          import('./features/providers/materials-page.component').then(m => m.MaterialsPageComponent),
+      },
+      {
         path: 'applications',
         canActivate: [adminGuard],
         loadComponent: () =>

@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { CacheService } from '../../core/services/cache/cache.service';
 import { environment } from '../../../environments/environment';
-import { SyllabusIndex, SyllabusIndexEntry, ClassSyllabus } from '../../models/syllabus/syllabus.model';
+import { SyllabusIndex, SyllabusIndexEntry, ClassSyllabus, PuzzlesIndex, ClassPuzzles } from '../../models/syllabus/syllabus.model';
 
 const INDEX_TTL = 60 * 60 * 1000; // 1 hour
 const CLASS_TTL = 60 * 60 * 1000;
@@ -24,7 +24,37 @@ export class SyllabusService {
       const index = await firstValueFrom(
         this.http.get<SyllabusIndex>(`${environment.syllabusApiBaseUrl}/index/syllabus-index.json${CACHE_VARIANT}`),
       );
+      // Live index lists everything under `catalog`; only enabled classes are offered.
+      if (index.catalog) {
+        return index.catalog
+          .filter(e => e.type === 'class' && e.enabled && e.file)
+          .map(e => ({ classId: e.id, className: e.title, file: e.file! }));
+      }
       return index.classes ?? [];
+    });
+  }
+
+  /** Class ids that have a puzzles file, mapped to that file's path. */
+  private puzzleFiles(): Promise<Map<string, string>> {
+    return this.cache.get('puzzles:index', INDEX_TTL, async () => {
+      const index = await firstValueFrom(
+        this.http.get<PuzzlesIndex>(`${environment.syllabusApiBaseUrl}/index/puzzles-index.json${CACHE_VARIANT}`),
+      );
+      return new Map((index.files ?? []).map(f => [f.classId, f.file] as [string, string]));
+    });
+  }
+
+  async listPuzzleClassIds(): Promise<string[]> {
+    return [...(await this.puzzleFiles()).keys()];
+  }
+
+  async loadPuzzles(classId: string): Promise<ClassPuzzles | null> {
+    return this.cache.get(`puzzles:class:${classId}`, CLASS_TTL, async () => {
+      const file = (await this.puzzleFiles()).get(classId);
+      if (!file) return null;
+      return firstValueFrom(
+        this.http.get<ClassPuzzles>(`${environment.syllabusApiBaseUrl}/${file}${CACHE_VARIANT}`),
+      );
     });
   }
 

@@ -9,5 +9,9 @@ export interface UserModel {
   bio?: string;
   rating?: number;
   photoUrl?: string;
+  /** Admin-set: which tuition center(s) (providers/{id}) a teacher belongs to. */
+  tuitionCenterIds?: string[];
+  /** Admin-set: lets a teacher edit syllabus progress, materials and other class content. */
+  canEditContent?: boolean;
   createdAt?: unknown; // Firestore Timestamp
 }

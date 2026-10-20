@@ -1,6 +1,7 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { UsersDirectoryService } from '../../core/services/users/users-directory.service';
+import { FirestoreService } from '../../core/services/fire/firestore.service';
 import { UserModel } from '../../models/user/user.model';
 
 @Component({
@@ -14,6 +15,7 @@ import { UserModel } from '../../models/user/user.model';
         <p>All users with teacher role across the platform</p>
       </header>
 
+      <div class="error" *ngIf="error()">{{ error() }}</div>
       <div *ngIf="loading()" class="loading">Loading teachers…</div>
 
       <div *ngIf="!loading() && teachers().length === 0" class="empty">
@@ -29,6 +31,11 @@ import { UserModel } from '../../models/user/user.model';
             <div class="email">{{ t.email }}</div>
           </div>
           <div class="meta">
+            <label class="perm" title="Lets this teacher update class progress and other content">
+              <input type="checkbox" [checked]="t.canEditContent === true" [disabled]="saving() === t.uid"
+                     (change)="setCanEdit(t, $any($event.target).checked)" />
+              Can edit content
+            </label>
             <span class="role-badge">Teacher</span>
           </div>
         </div>
@@ -76,18 +83,43 @@ import { UserModel } from '../../models/user/user.model';
     .name { font-weight: 600; color: #1e293b; font-size: 15px; }
     .email { color: #64748b; font-size: 13px; }
 
+    .meta { display: flex; align-items: center; gap: 14px; }
+    .perm { font-size: 13px; color: #475569; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+    .error { color: #b91c1c; background: #fef2f2; padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; font-size: 13px; }
     .role-badge { padding: 3px 10px; background: #f3e8ff; color: #6b21a8; border-radius: 12px; font-size: 11px; font-weight: 600; }
   `],
 })
 export class TeachersComponent implements OnInit {
   private directory = inject(UsersDirectoryService);
+  private fs = inject(FirestoreService);
   teachers = signal<UserModel[]>([]);
+  saving = signal('');
+  error = signal('');
   loading = signal(true);
 
   async ngOnInit() {
     const res = await this.directory.listTeachers();
     this.teachers.set(res.data ?? []);
     this.loading.set(false);
+  }
+
+  /** Admin-only write (enforced by Firestore rules too); optimistic with rollback. */
+  async setCanEdit(t: UserModel, value: boolean) {
+    this.error.set('');
+    this.saving.set(t.uid);
+    this.patch(t.uid, value);
+    const res = await this.fs.update(`users/${t.uid}`, { canEditContent: value });
+    if (!res.ok) {
+      this.patch(t.uid, !value);
+      this.error.set(`Couldn't update ${t.name}: ${res.message}`);
+    } else {
+      this.directory.invalidate();
+    }
+    this.saving.set('');
+  }
+
+  private patch(uid: string, value: boolean) {
+    this.teachers.update(ts => ts.map(x => (x.uid === uid ? { ...x, canEditContent: value } : x)));
   }
 
   initials(name: string): string {
