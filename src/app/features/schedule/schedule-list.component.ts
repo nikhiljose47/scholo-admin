@@ -6,92 +6,164 @@ import { ScheduleService } from './schedule.service';
 import { Meeting, sessionState, SessionState } from '../../models/schedule/meeting.model';
 import { toISTDateStr, toISTTimeStr } from './schedule.service';
 import { AdminAuthService } from '../../core/services/auth/admin-auth.service';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 
 @Component({
   selector: 'app-schedule-list',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule],
+  imports: [CommonModule, RouterLink, FormsModule, IconComponent],
   template: `
     <div class="page">
+
+      <!-- Header -->
       <header class="page-header">
         <div>
-          <h1>Class Schedule</h1>
-          <p>{{ auth.isAdmin() ? 'All sessions across every center and batch' : 'Your scheduled sessions' }}</p>
+          <h1 class="page-title">Class Schedule</h1>
+          <p class="page-subtitle">{{ auth.isAdmin() ? 'All sessions across every center and batch' : 'Your scheduled sessions' }}</p>
         </div>
         <div class="header-actions">
-          <button (click)="viewMode.set('list')" [class.active]="viewMode() === 'list'" class="view-btn">≡ List</button>
-          <button (click)="viewMode.set('calendar')" [class.active]="viewMode() === 'calendar'" class="view-btn">📅 Week</button>
-          <a routerLink="/schedule/new" class="btn-primary">+ Schedule Class</a>
+          <!-- View toggle -->
+          <div class="view-toggle" role="group" aria-label="View mode">
+            <button
+              (click)="viewMode.set('list')"
+              [class.active]="viewMode() === 'list'"
+              class="toggle-btn"
+            >
+              <sc-icon name="clipboard" [size]="14"></sc-icon>
+              List
+            </button>
+            <button
+              (click)="viewMode.set('calendar')"
+              [class.active]="viewMode() === 'calendar'"
+              class="toggle-btn"
+            >
+              <sc-icon name="calendar" [size]="14"></sc-icon>
+              Week
+            </button>
+          </div>
+          <a routerLink="/schedule/new" class="btn btn-primary">
+            <sc-icon name="plus" [size]="15" [stroke]="2.5"></sc-icon>
+            Schedule Class
+          </a>
         </div>
       </header>
 
-      <!-- Filters -->
-      <div class="filters">
-        <select [(ngModel)]="filterState" class="filter-select">
-          <option value="">All sessions</option>
-          <option value="live">🔴 Live now</option>
-          <option value="upcoming">🟡 Upcoming</option>
-          <option value="past">⚫ Past</option>
-        </select>
-        <input type="search" [(ngModel)]="filterText" placeholder="Search class, subject, teacher…" class="search-input" />
+      <!-- Toolbar -->
+      <div class="toolbar">
+        <!-- Stats chips -->
+        <div class="stat-chips">
+          <div class="stat-chip live" [class.active]="filterState === 'live'" (click)="toggleFilter('live')">
+            <span class="chip-dot"></span>
+            {{ countByState('live') }} Live
+          </div>
+          <div class="stat-chip upcoming" [class.active]="filterState === 'upcoming'" (click)="toggleFilter('upcoming')">
+            <span class="chip-dot"></span>
+            {{ countByState('upcoming') }} Upcoming
+          </div>
+          <div class="stat-chip past" [class.active]="filterState === 'past'" (click)="toggleFilter('past')">
+            <span class="chip-dot"></span>
+            {{ countByState('past') }} Past
+          </div>
+        </div>
+
+        <!-- Search -->
+        <div class="search-wrap">
+          <sc-icon name="search" [size]="15" class="search-icon"></sc-icon>
+          <input
+            type="search"
+            [(ngModel)]="filterText"
+            placeholder="Search class, subject, teacher…"
+            class="search-input"
+          />
+        </div>
       </div>
 
-      <!-- Stats row -->
-      <div class="stats-row">
-        <div class="stat-chip live">🔴 {{ countByState('live') }} Live</div>
-        <div class="stat-chip upcoming">🟡 {{ countByState('upcoming') }} Upcoming</div>
-        <div class="stat-chip past">⚫ {{ countByState('past') }} Past</div>
-      </div>
-
-      <div *ngIf="loading()" class="loading">Loading sessions…</div>
+      <div *ngIf="loading()" class="loading-state">Loading sessions</div>
 
       <!-- LIST VIEW -->
-      <div *ngIf="!loading() && viewMode() === 'list'" class="meeting-list">
-        <div *ngIf="filtered().length === 0" class="empty">
-          <span>📅</span>
-          <p>No sessions match the current filter.</p>
-          <a routerLink="/schedule/new" class="btn-primary">Schedule a class</a>
+      <ng-container *ngIf="!loading() && viewMode() === 'list'">
+
+        <!-- Empty state -->
+        <div *ngIf="filtered().length === 0" class="empty-state">
+          <sc-icon name="calendar" [size]="40" [stroke]="1"></sc-icon>
+          <p class="empty-title">No sessions found</p>
+          <p class="empty-body">{{ filterState || filterText ? 'Try changing your filters.' : 'Get started by scheduling a class.' }}</p>
+          <a *ngIf="!filterState && !filterText" routerLink="/schedule/new" class="btn btn-primary">Schedule a class</a>
         </div>
 
-        <div *ngFor="let m of filtered()" class="meeting-card" [class]="stateOf(m)">
-          <div class="card-left">
-            <div class="state-dot" [class]="stateOf(m)"></div>
-            <div class="date-block">
-              <div class="date">{{ istDate(m.date) }}</div>
-              <div class="time">{{ istTime(m.date) }} — {{ istTime(m.endAt) }} IST</div>
-            </div>
-          </div>
+        <div class="meeting-list" *ngIf="filtered().length > 0">
+          <div *ngFor="let m of filtered()" class="meeting-row card">
 
-          <div class="card-body">
-            <div class="class-name">{{ m.className || m.classId }}</div>
-            <div class="subject">{{ m.subjectName || m.subjectId }} · {{ m.chapterName || m.chapterCode }}</div>
-            <div class="meta-row">
-              <span class="teacher">👤 {{ m.teacherName }}</span>
-              <span *ngIf="m.centerId" class="center-tag">🏫 {{ m.centerId }}</span>
-              <span class="batch-tag" *ngIf="m.batchId !== 'default'">📚 {{ m.batchId }}</span>
-              <span class="duration">⏱ {{ m.duration }} min</span>
+            <!-- State indicator -->
+            <div class="row-state" [class]="stateOf(m)">
+              <span class="state-dot" [class]="stateOf(m)"></span>
             </div>
-          </div>
 
-          <div class="card-right">
-            <span class="state-badge" [class]="stateOf(m)">{{ stateOf(m) }}</span>
-            <div class="actions">
-              <a [routerLink]="['/schedule', m.id, 'edit']" class="btn-sm">Edit</a>
-              <button (click)="viewAttendance(m)" class="btn-sm">Attendance</button>
-              <button (click)="cancel(m)" *ngIf="stateOf(m) !== 'past'" class="btn-sm danger">Cancel</button>
+            <!-- Date/time -->
+            <div class="row-datetime">
+              <div class="row-date">{{ istDate(m.date) }}</div>
+              <div class="row-time">{{ istTime(m.date) }} — {{ istTime(m.endAt) }}</div>
             </div>
+
+            <!-- Main content -->
+            <div class="row-body">
+              <div class="row-title">{{ m.className || m.classId }}</div>
+              <div class="row-sub">{{ m.subjectName || m.subjectId }}
+                <ng-container *ngIf="m.chapterName || m.chapterCode">
+                  · {{ m.chapterName || m.chapterCode }}
+                </ng-container>
+              </div>
+              <div class="row-meta">
+                <span class="meta-item">
+                  <sc-icon name="person" [size]="11" [stroke]="1.5"></sc-icon>
+                  {{ m.teacherName }}
+                </span>
+                <span class="meta-item" *ngIf="m.centerId">
+                  <sc-icon name="buildings" [size]="11" [stroke]="1.5"></sc-icon>
+                  {{ m.centerId }}
+                </span>
+                <span class="tag tag-neutral" *ngIf="m.batchId !== 'default'">{{ m.batchId }}</span>
+                <span class="meta-item muted">{{ m.duration }} min</span>
+              </div>
+            </div>
+
+            <!-- Right: badge + actions -->
+            <div class="row-actions">
+              <span
+                class="badge"
+                [class.badge-live]="stateOf(m) === 'live'"
+                [class.badge-upcoming]="stateOf(m) === 'upcoming'"
+                [class.badge-past]="stateOf(m) === 'past'"
+              >{{ stateOf(m) }}</span>
+              <div class="action-btns">
+                <a [routerLink]="['/schedule', m.id, 'edit']" class="btn btn-ghost btn-sm">Edit</a>
+                <button (click)="viewAttendance(m)" class="btn btn-ghost btn-sm">Attendance</button>
+                <button
+                  (click)="cancel(m)"
+                  *ngIf="stateOf(m) !== 'past'"
+                  class="btn btn-danger btn-sm"
+                >Cancel</button>
+              </div>
+            </div>
+
           </div>
         </div>
-      </div>
+      </ng-container>
 
       <!-- CALENDAR VIEW -->
-      <div *ngIf="!loading() && viewMode() === 'calendar'" class="calendar-wrap">
+      <div *ngIf="!loading() && viewMode() === 'calendar'" class="calendar-wrap card">
+
         <div class="cal-nav">
-          <button (click)="prevWeek()" class="nav-btn">‹</button>
+          <button (click)="prevWeek()" class="btn btn-ghost btn-sm">
+            <sc-icon name="chevron-left" [size]="14" [stroke]="2"></sc-icon>
+          </button>
           <span class="week-label">{{ weekLabel() }}</span>
-          <button (click)="nextWeek()" class="nav-btn">›</button>
-          <button (click)="goToday()" class="today-btn">Today</button>
+          <button (click)="nextWeek()" class="btn btn-ghost btn-sm">
+            <sc-icon name="chevron-right" [size]="14" [stroke]="2"></sc-icon>
+          </button>
+          <button (click)="goToday()" class="btn btn-secondary btn-sm">Today</button>
         </div>
+
         <div class="cal-grid">
           <div *ngFor="let day of weekDays()" class="cal-day">
             <div class="day-header" [class.today]="isToday(day.date)">
@@ -103,13 +175,14 @@ import { AdminAuthService } from '../../core/services/auth/admin-auth.service';
                 *ngFor="let m of sessionsOnDay(day.date)"
                 class="cal-session"
                 [class]="stateOf(m)"
-                [title]="m.className + ' · ' + m.subjectName"
+                [title]="(m.className || m.classId) + ' · ' + (m.subjectName || m.subjectId)"
+                (click)="viewAttendance(m)"
               >
                 <div class="cal-time">{{ istTime(m.date) }}</div>
-                <div class="cal-name">{{ m.className }}</div>
+                <div class="cal-name">{{ m.className || m.classId }}</div>
                 <div class="cal-teacher">{{ m.teacherName }}</div>
               </div>
-              <div *ngIf="sessionsOnDay(day.date).length === 0" class="no-session">—</div>
+              <div *ngIf="sessionsOnDay(day.date).length === 0" class="no-session">–</div>
             </div>
           </div>
         </div>
@@ -119,241 +192,332 @@ import { AdminAuthService } from '../../core/services/auth/admin-auth.service';
       <div *ngIf="attendanceModal()" class="modal-backdrop" (click)="attendanceModal.set(null)">
         <div class="modal" (click)="$event.stopPropagation()">
           <div class="modal-header">
-            <h3>Attendance — {{ attendanceModal()!.meeting.className }}</h3>
-            <button (click)="attendanceModal.set(null)" class="close-btn">✕</button>
+            <h3>Attendance — {{ attendanceModal()!.meeting.className || attendanceModal()!.meeting.classId }}</h3>
+            <button (click)="attendanceModal.set(null)" class="btn btn-ghost btn-sm icon-only">
+              <sc-icon name="x" [size]="15" [stroke]="2"></sc-icon>
+            </button>
           </div>
           <div class="modal-body">
-            <div *ngIf="attendanceModal()!.loading" class="loading">Loading…</div>
-            <div *ngIf="!attendanceModal()!.loading">
-              <p class="att-count">{{ attendanceModal()!.users.length }} student(s) marked attendance (RSVP)</p>
-              <ul class="att-list">
-                <li *ngFor="let uid of attendanceModal()!.users">{{ uid }}</li>
+            <div *ngIf="attendanceModal()!.loading" class="loading-state">Loading</div>
+            <ng-container *ngIf="!attendanceModal()!.loading">
+              <p class="att-count">{{ attendanceModal()!.users.length }} student(s) marked attendance</p>
+              <ul class="att-list" *ngIf="attendanceModal()!.users.length > 0">
+                <li *ngFor="let uid of attendanceModal()!.users" class="att-item">{{ uid }}</li>
               </ul>
-              <p *ngIf="attendanceModal()!.users.length === 0" class="muted">No attendance recorded yet.</p>
-            </div>
+              <p *ngIf="attendanceModal()!.users.length === 0" class="att-empty">No attendance recorded yet.</p>
+            </ng-container>
           </div>
         </div>
       </div>
+
     </div>
   `,
   styles: [`
-    .page { max-width: 1200px; margin: 0 auto; }
-
-    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
-    h1 { margin: 0; font-size: 22px; font-weight: 700; color: #1e293b; }
-    p { margin: 4px 0 0; color: #64748b; font-size: 14px; }
-
-    .header-actions { display: flex; gap: 8px; align-items: center; }
-
-    .view-btn {
-      padding: 8px 14px;
-      border: 1px solid #d1d5db;
-      border-radius: 8px;
-      background: #fff;
-      cursor: pointer;
-      font-size: 13px;
-      color: #374151;
+    /* ── Toolbar ── */
+    .stat-chips {
+      display: flex;
+      gap: 6px;
     }
-    .view-btn.active { background: #eff6ff; border-color: #3b82f6; color: #1d4ed8; }
 
-    .btn-primary {
-      padding: 9px 16px;
-      background: #3b82f6;
-      color: #fff;
-      border-radius: 8px;
-      text-decoration: none;
-      font-size: 14px;
+    .stat-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: var(--r-full);
+      font-size: 12px;
       font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: background var(--dur-base), border-color var(--dur-base);
+      user-select: none;
     }
 
-    .filters { display: flex; gap: 10px; margin-bottom: 14px; }
+    .stat-chip.live { background: var(--live-bg); color: var(--live-text); }
+    .stat-chip.upcoming { background: var(--up-bg); color: var(--up-text); }
+    .stat-chip.past { background: var(--past-bg); color: var(--past-text); }
+    .stat-chip.active { border-color: currentColor; }
 
-    .filter-select {
-      padding: 9px 12px;
-      border: 1px solid #d1d5db;
-      border-radius: 8px;
-      font-size: 14px;
-      outline: none;
+    .chip-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+      flex-shrink: 0;
+    }
+
+    .stat-chip.live .chip-dot { animation: pulse 1.6s ease-in-out infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    /* Search */
+    .search-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      color: var(--text-placeholder);
+      pointer-events: none;
     }
 
     .search-input {
-      flex: 1;
-      padding: 9px 14px;
-      border: 1px solid #d1d5db;
-      border-radius: 8px;
-      font-size: 14px;
-      outline: none;
-    }
-
-    .stats-row { display: flex; gap: 10px; margin-bottom: 20px; }
-
-    .stat-chip {
-      padding: 6px 14px;
-      border-radius: 20px;
+      height: var(--ctrl-md);
+      width: 260px;
+      padding: 0 12px 0 34px;
+      background: var(--surface-primary);
+      border: 1px solid var(--border-default);
+      border-radius: var(--r-sm);
+      color: var(--text-primary);
       font-size: 13px;
-      font-weight: 600;
+      outline: none;
+      transition: border-color var(--dur-base), box-shadow var(--dur-base);
     }
-    .stat-chip.live { background: #fee2e2; color: #991b1b; }
-    .stat-chip.upcoming { background: #fef3c7; color: #92400e; }
-    .stat-chip.past { background: #f1f5f9; color: #475569; }
 
-    .loading { color: #64748b; padding: 20px; }
+    .search-input::placeholder { color: var(--text-placeholder); }
+    .search-input:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px var(--border-focus-ring);
+    }
 
-    .empty { text-align: center; padding: 60px; color: #64748b; }
-    .empty span { font-size: 48px; display: block; margin-bottom: 12px; }
+    /* View toggle */
+    .view-toggle {
+      display: flex;
+      background: var(--surface-secondary);
+      border: 1px solid var(--border-default);
+      border-radius: var(--r-sm);
+      padding: 3px;
+      gap: 2px;
+    }
 
-    /* Meeting card */
-    .meeting-list { display: flex; flex-direction: column; gap: 10px; }
-
-    .meeting-card {
-      background: #fff;
-      border-radius: 10px;
-      padding: 16px;
+    .toggle-btn {
       display: flex;
       align-items: center;
-      gap: 16px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-      border-left: 4px solid #e2e8f0;
+      gap: 5px;
+      height: 28px;
+      padding: 0 10px;
+      border-radius: var(--r-xs);
+      border: none;
+      background: none;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background var(--dur-base), color var(--dur-base);
     }
-    .meeting-card.live { border-left-color: #ef4444; }
-    .meeting-card.upcoming { border-left-color: #f59e0b; }
-    .meeting-card.past { border-left-color: #94a3b8; opacity: 0.75; }
 
-    .card-left { display: flex; align-items: center; gap: 10px; min-width: 160px; }
+    .toggle-btn.active {
+      background: var(--surface-primary);
+      color: var(--text-primary);
+      box-shadow: var(--shadow-xs);
+    }
 
-    .state-dot {
-      width: 10px; height: 10px;
-      border-radius: 50%;
-      background: #94a3b8;
+    /* ── Meeting list ── */
+    .meeting-list { display: flex; flex-direction: column; gap: 6px; }
+
+    .meeting-row {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .row-state {
+      width: 4px;
+      align-self: stretch;
       flex-shrink: 0;
     }
-    .state-dot.live { background: #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,0.2); animation: pulse 1.5s infinite; }
-    .state-dot.upcoming { background: #f59e0b; }
+    .row-state.live { background: var(--live-dot); }
+    .row-state.upcoming { background: var(--up-dot); }
+    .row-state.past { background: var(--past-dot); }
 
-    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .state-dot { display: none; }
 
-    .date { font-weight: 600; font-size: 14px; color: #1e293b; }
-    .time { font-size: 12px; color: #64748b; }
-
-    .card-body { flex: 1; }
-    .class-name { font-weight: 600; font-size: 15px; color: #1e293b; }
-    .subject { font-size: 13px; color: #64748b; margin: 2px 0 6px; }
-    .meta-row { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: #64748b; }
-    .center-tag, .batch-tag { background: #f1f5f9; padding: 2px 8px; border-radius: 8px; }
-
-    .card-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
-
-    .state-badge {
-      padding: 3px 10px; border-radius: 12px;
-      font-size: 11px; font-weight: 700; text-transform: uppercase;
+    .row-datetime {
+      padding: 14px 16px;
+      min-width: 140px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border-subtle);
     }
-    .state-badge.live { background: #fee2e2; color: #991b1b; }
-    .state-badge.upcoming { background: #fef3c7; color: #92400e; }
-    .state-badge.past { background: #f1f5f9; color: #64748b; }
 
-    .actions { display: flex; gap: 6px; }
+    .row-date {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
 
-    .btn-sm {
-      padding: 5px 12px;
-      border: 1px solid #d1d5db;
-      border-radius: 6px;
-      background: #fff;
+    .row-time {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+      white-space: nowrap;
+    }
+
+    .row-body {
+      flex: 1;
+      padding: 12px 16px;
+      min-width: 0;
+    }
+
+    .row-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .row-sub {
       font-size: 12px;
-      color: #374151;
-      cursor: pointer;
-      text-decoration: none;
+      color: var(--text-muted);
+      margin: 2px 0 6px;
     }
-    .btn-sm.danger { border-color: #fca5a5; color: #dc2626; }
-    .btn-sm.danger:hover { background: #fef2f2; }
 
-    /* Calendar */
-    .calendar-wrap { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); overflow: hidden; }
+    .row-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .meta-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .meta-item.muted { color: var(--text-placeholder); }
+
+    .row-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 8px;
+      padding: 12px 16px;
+      flex-shrink: 0;
+    }
+
+    .action-btns {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .icon-only { padding: 0; width: 30px; height: 30px; }
+
+    /* ── Calendar ── */
+    .calendar-wrap { overflow: hidden; padding: 0; }
 
     .cal-nav {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 14px 20px;
-      border-bottom: 1px solid #e2e8f0;
+      gap: 10px;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border-subtle);
     }
 
-    .nav-btn, .today-btn {
-      padding: 6px 12px;
-      border: 1px solid #d1d5db;
-      border-radius: 6px;
-      background: #fff;
-      cursor: pointer;
+    .week-label {
+      flex: 1;
       font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
     }
 
-    .week-label { font-weight: 600; font-size: 15px; color: #1e293b; flex: 1; }
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      min-height: 320px;
+    }
 
-    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); min-height: 300px; }
-
-    .cal-day { border-right: 1px solid #f1f5f9; }
+    .cal-day { border-right: 1px solid var(--border-subtle); }
     .cal-day:last-child { border-right: none; }
 
     .day-header {
       padding: 10px 8px 8px;
       text-align: center;
-      border-bottom: 1px solid #f1f5f9;
-      background: #f8fafc;
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--surface-secondary);
     }
-    .day-header.today { background: #eff6ff; }
 
-    .day-name { font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; }
-    .day-num { font-size: 18px; font-weight: 700; color: #1e293b; }
-    .day-header.today .day-num { color: #3b82f6; }
+    .day-header.today { background: var(--brand-subtle); }
+
+    .day-name {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-placeholder);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .day-num {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-top: 2px;
+    }
+
+    .day-header.today .day-num { color: var(--brand); }
 
     .day-sessions { padding: 6px; display: flex; flex-direction: column; gap: 4px; }
 
     .cal-session {
-      padding: 6px 8px;
-      border-radius: 6px;
+      padding: 7px 8px;
+      border-radius: var(--r-sm);
       font-size: 11px;
       cursor: pointer;
-      background: #fef3c7;
-      border-left: 3px solid #f59e0b;
+      border-left: 3px solid var(--up-dot);
+      background: var(--up-bg);
+      transition: opacity var(--dur-base);
     }
-    .cal-session.live { background: #fee2e2; border-left-color: #ef4444; }
-    .cal-session.past { background: #f8fafc; border-left-color: #94a3b8; }
+    .cal-session:hover { opacity: 0.8; }
+    .cal-session.live { background: var(--live-bg); border-left-color: var(--live-dot); }
+    .cal-session.past { background: var(--past-bg); border-left-color: var(--past-dot); }
 
-    .cal-time { font-weight: 600; color: #1e293b; }
-    .cal-name { color: #374151; margin-top: 1px; }
-    .cal-teacher { color: #94a3b8; font-size: 10px; }
+    .cal-time { font-weight: 600; color: var(--text-primary); }
+    .cal-name { color: var(--text-secondary); margin-top: 1px; }
+    .cal-teacher { color: var(--text-muted); font-size: 10px; margin-top: 1px; }
 
-    .no-session { color: #d1d5db; font-size: 12px; text-align: center; padding: 12px 0; }
-
-    /* Modal */
-    .modal-backdrop {
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,0.4);
-      display: flex; align-items: center; justify-content: center;
-      z-index: 100;
+    .no-session {
+      color: var(--border-strong);
+      font-size: 12px;
+      text-align: center;
+      padding: 14px 0;
     }
-    .modal {
-      background: #fff;
-      border-radius: 14px;
-      width: 440px;
-      max-height: 80vh;
+
+    /* ── Attendance modal ── */
+    .att-count {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0 0 14px;
+    }
+
+    .att-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
       display: flex;
       flex-direction: column;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+      gap: 6px;
     }
-    .modal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 18px 20px;
-      border-bottom: 1px solid #e2e8f0;
+
+    .att-item {
+      padding: 8px 12px;
+      background: var(--surface-secondary);
+      border-radius: var(--r-sm);
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
     }
-    h3 { margin: 0; font-size: 16px; color: #1e293b; }
-    .close-btn { background: none; border: none; font-size: 18px; cursor: pointer; color: #64748b; }
-    .modal-body { padding: 20px; overflow-y: auto; }
-    .att-count { font-weight: 600; color: #1e293b; margin: 0 0 12px; }
-    .att-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
-    .att-list li { padding: 8px 12px; background: #f8fafc; border-radius: 6px; font-size: 13px; color: #374151; font-family: monospace; }
-    .muted { color: #94a3b8; font-size: 13px; }
+
+    .att-empty {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin: 0;
+    }
   `],
 })
 export class ScheduleListComponent implements OnInit {
@@ -368,7 +532,6 @@ export class ScheduleListComponent implements OnInit {
 
   attendanceModal = signal<{ meeting: Meeting; loading: boolean; users: string[] } | null>(null);
 
-  // Calendar
   weekStart = signal(this.mondayOf(new Date()));
 
   filtered = computed(() => {
@@ -387,8 +550,6 @@ export class ScheduleListComponent implements OnInit {
   });
 
   async ngOnInit() {
-    // Scoped server-side: admins get a 7-day-back window across the platform,
-    // teachers only ever receive documents where they are the assigned teacher.
     const res = await this.service.listForCurrentUser();
     this.meetings.set(res.data ?? []);
     this.loading.set(false);
@@ -400,6 +561,10 @@ export class ScheduleListComponent implements OnInit {
 
   countByState(s: SessionState) {
     return this.meetings().filter(m => this.stateOf(m) === s).length;
+  }
+
+  toggleFilter(s: SessionState) {
+    this.filterState = this.filterState === s ? '' : s;
   }
 
   async cancel(m: Meeting) {
@@ -414,7 +579,6 @@ export class ScheduleListComponent implements OnInit {
     this.attendanceModal.set({ meeting: m, loading: false, users: res?.users ?? [] });
   }
 
-  // Calendar helpers
   mondayOf(date: Date): Date {
     const d = new Date(date);
     const day = d.getDay();
