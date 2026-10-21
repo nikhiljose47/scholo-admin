@@ -6,38 +6,29 @@ export interface ClassBatchProgress {
   curChapterId?: string;
 }
 
-/** Per-class teaching progress, stored on classes/{classId}/batches/{batchId}.curChapterId —
- *  the same field the learner app reads as "current chapter". Chapters before it are
- *  done, it is in progress, those after are upcoming. */
+/** Teaching progress per (tuition center, syllabus class), stored on
+ *  classes/{classId}/batches/{centerId}.curChapterId — the batch doc id is the center's
+ *  provider id, so every center tracks its own current chapter. Chapters before it are
+ *  done, it is in progress, those after are upcoming. Never cached: a teacher must always
+ *  see what they last saved. */
 @Injectable({ providedIn: 'root' })
 export class ClassProgressService {
   private fs = inject(FirestoreService);
   private auth = inject(AdminAuthService);
 
-  private path(classId: string, batchId: string) {
-    return `classes/${classId}/batches/${batchId}`;
+  private path(classId: string, centerId: string) {
+    return `classes/${classId}/batches/${centerId}`;
   }
 
-  async getCurrentChapter(classId: string, batchId: string): Promise<string | null> {
-    const res = await this.fs.getOnce<ClassBatchProgress>(this.path(classId, batchId));
+  async getCurrentChapter(classId: string, centerId: string): Promise<string | null> {
+    const res = await this.fs.getOnce<ClassBatchProgress>(this.path(classId, centerId));
     return res.data?.curChapterId ?? null;
   }
 
-  /** The tuition center (providers/{id}) a class belongs to, if linked. */
-  async getClassProviderId(classId: string): Promise<string | null> {
-    const res = await this.fs.getOnce<{ providerId?: string }>(`classes/${classId}`);
-    return res.data?.providerId ?? null;
-  }
-
-  async listProviders(): Promise<{ id: string; name?: string }[]> {
-    const res = await this.fs.getAllOnce<{ id: string; name?: string }>('providers');
-    return res.data ?? [];
-  }
-
-  setCurrentChapter(classId: string, batchId: string, chapterId: string, providerId?: string | null): Promise<FireResponse<void>> {
-    return this.fs.setMerge(this.path(classId, batchId), {
+  setCurrentChapter(classId: string, centerId: string, chapterId: string): Promise<FireResponse<void>> {
+    return this.fs.setMerge(this.path(classId, centerId), {
       curChapterId: chapterId,
-      ...(providerId ? { providerId } : {}),
+      providerId: centerId,
       progressUpdatedAt: this.fs.serverTimestamp(),
       progressUpdatedBy: this.auth.uid,
     });

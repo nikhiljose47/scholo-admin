@@ -1,5 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { deleteField } from '@angular/fire/firestore';
+import { CacheService } from '../../core/services/cache/cache.service';
+import { CACHE_TTL } from '../../core/constants/cache-ttl.constants';
 import { FirestoreService, FireResponse } from '../../core/services/fire/firestore.service';
 import { ClassDoc, MaterialDoc, ProviderDoc } from '../../models/content/content.model';
 
@@ -7,24 +9,29 @@ import { ClassDoc, MaterialDoc, ProviderDoc } from '../../models/content/content
 @Injectable({ providedIn: 'root' })
 export class ProvidersService {
   private fs = inject(FirestoreService);
+  private cache = inject(CacheService);
 
   listProviders(): Promise<FireResponse<ProviderDoc[]>> {
-    return this.fs.getAllOnce<ProviderDoc>('providers');
+    return this.cache.get('providers:list', CACHE_TTL.CENTERS_LIST, () => this.fs.getAllOnce<ProviderDoc>('providers'));
   }
 
   /** Saves only the admin-set fields. A key mapped to `null` is removed from the document. */
-  saveProvider(id: string, fields: Partial<Record<keyof ProviderDoc, unknown>>): Promise<FireResponse<void>> {
+  async saveProvider(id: string, fields: Partial<Record<keyof ProviderDoc, unknown>>): Promise<FireResponse<void>> {
     const data: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(fields)) data[k] = v === null ? deleteField() : v;
-    return this.fs.setMerge(`providers/${id}`, data);
+    const res = await this.fs.setMerge(`providers/${id}`, data);
+    this.cache.invalidate('providers:list');
+    return res;
   }
 
   listClasses(): Promise<FireResponse<ClassDoc[]>> {
-    return this.fs.getAllOnce<ClassDoc>('classes');
+    return this.cache.get('classes:list', CACHE_TTL.CENTERS_LIST, () => this.fs.getAllOnce<ClassDoc>('classes'));
   }
 
-  setClassProvider(classId: string, providerId: string | null): Promise<FireResponse<void>> {
-    return this.fs.setMerge(`classes/${classId}`, { providerId: providerId ?? deleteField() });
+  async setClassProvider(classId: string, providerId: string | null): Promise<FireResponse<void>> {
+    const res = await this.fs.setMerge(`classes/${classId}`, { providerId: providerId ?? deleteField() });
+    this.cache.invalidate('classes:list');
+    return res;
   }
 
   listMaterials(classId: string): Promise<FireResponse<MaterialDoc[]>> {
