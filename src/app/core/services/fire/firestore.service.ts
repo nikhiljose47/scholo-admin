@@ -6,6 +6,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  getCountFromServer,
   setDoc,
   updateDoc,
   deleteDoc,
@@ -64,6 +65,17 @@ export class FirestoreService {
       const snap = await getDocs(q);
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() }) as T);
       return { ok: true, data };
+    } catch (e: unknown) {
+      return { ok: false, message: (e as Error).message };
+    }
+  }
+
+  /** Server-side count (billed as ~1 read per 1000 matching docs) — never downloads the documents. */
+  async count(path: string, ...constraints: QueryConstraint[]): Promise<FireResponse<number>> {
+    try {
+      const col = collection(this.fs, path);
+      const snap = await getCountFromServer(constraints.length ? query(col, ...constraints) : col);
+      return { ok: true, data: snap.data().count };
     } catch (e: unknown) {
       return { ok: false, message: (e as Error).message };
     }

@@ -35,6 +35,29 @@ export function toISTTimeStr(ts: Timestamp): string {
   return d.toISOString().slice(11, 16);
 }
 
+export interface ScheduleCounts {
+  week: number;
+  month: number;
+  total: number;
+}
+
+/** Start of the current IST week (Monday 00:00) and month (1st 00:00), plus the end of each. */
+export function istPeriods(nowMs = Date.now()) {
+  const ist = new Date(nowMs + IST_OFFSET_MS);
+  const y = ist.getUTCFullYear();
+  const m = ist.getUTCMonth();
+  const d = ist.getUTCDate();
+  const dayStart = Date.UTC(y, m, d) - IST_OFFSET_MS;
+  const sinceMonday = (ist.getUTCDay() + 6) % 7;
+  const weekStart = dayStart - sinceMonday * 24 * 60 * 60 * 1000;
+  return {
+    weekStart: Timestamp.fromMillis(weekStart),
+    weekEnd: Timestamp.fromMillis(weekStart + 7 * 24 * 60 * 60 * 1000),
+    monthStart: Timestamp.fromMillis(Date.UTC(y, m, 1) - IST_OFFSET_MS),
+    monthEnd: Timestamp.fromMillis(Date.UTC(y, m + 1, 1) - IST_OFFSET_MS),
+  };
+}
+
 export interface AttendanceResponse {
   code: string;
   totalUsers: number;
@@ -93,6 +116,29 @@ export class ScheduleService {
         limit(pageLimit),
       ),
     );
+  }
+
+  /** Classes scheduled this week / this month / ever, by class date (IST calendar).
+   *  Admins count every meeting; teachers only their own (filtered server-side). */
+  getCounts(): Promise<FireResponse<ScheduleCounts>> {
+    const uid = this.auth.uid;
+    const admin = this.auth.isAdmin();
+    if (!admin && !uid) return Promise.resolve({ ok: false, message: 'Not authenticated' });
+
+    const key = `meetings:counts:${admin ? 'all' : uid}`;
+    return this.cache.get(key, CACHE_TTL.SCHEDULE_WINDOW, async () => {
+      const scope = admin ? [] : [where('teacherId', '==', uid!)];
+      const p = istPeriods();
+      const [week, month, total] = await Promise.all([
+        this.fs.count(COLLECTION, ...scope, where('date', '>=', p.weekStart), where('date', '<', p.weekEnd)),
+        this.fs.count(COLLECTION, ...scope, where('date', '>=', p.monthStart), where('date', '<', p.monthEnd)),
+        this.fs.count(COLLECTION, ...scope),
+      ]);
+      if (!week.ok || !month.ok || !total.ok) {
+        return { ok: false, message: week.message ?? month.message ?? total.message } as FireResponse<ScheduleCounts>;
+      }
+      return { ok: true, data: { week: week.data!, month: month.data!, total: total.data! } };
+    });
   }
 
   /** Load meetings for a specific batch. */

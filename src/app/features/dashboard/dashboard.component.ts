@@ -6,209 +6,347 @@ import { ScheduleService } from '../schedule/schedule.service';
 import { sessionState } from '../../models/schedule/meeting.model';
 import { AdminAuthService } from '../../core/services/auth/admin-auth.service';
 import { UsersDirectoryService } from '../../core/services/users/users-directory.service';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 
-interface StatCard {
+interface MetricCard {
   label: string;
   value: string | number;
   icon: string;
-  color: string;
   link?: string;
+}
+
+interface QuickAction {
+  label: string;
+  description: string;
+  icon: string;
+  path: string;
 }
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, IconComponent],
   template: `
-    <div class="dashboard">
+    <div class="page">
+
+      <!-- Page header -->
       <header class="page-header">
         <div>
-          <h1>Dashboard</h1>
-          <p>Welcome back, {{ auth.userProfile()?.name ?? 'Admin' }}</p>
+          <h1 class="page-title">Dashboard</h1>
+          <p class="page-subtitle">Welcome back, {{ auth.userProfile()?.name ?? 'Admin' }}</p>
         </div>
         <div class="header-actions">
-          <a *ngIf="auth.isAdmin()" routerLink="/centers/new" class="btn-primary">+ New Center</a>
-          <a *ngIf="!auth.isAdmin()" routerLink="/schedule/new" class="btn-primary">+ Schedule Class</a>
+          <a *ngIf="auth.isAdmin()" routerLink="/centers/new" class="btn btn-primary">
+            <sc-icon name="plus" [size]="15" [stroke]="2.5"></sc-icon>
+            New Center
+          </a>
+          <a *ngIf="!auth.isAdmin()" routerLink="/schedule/new" class="btn btn-primary">
+            <sc-icon name="plus" [size]="15" [stroke]="2.5"></sc-icon>
+            Schedule Class
+          </a>
         </div>
       </header>
 
-      <div class="stats-grid">
-        <div *ngFor="let stat of stats()" class="stat-card" [style.border-left-color]="stat.color">
-          <div class="stat-icon">{{ stat.icon }}</div>
-          <div class="stat-body">
-            <div class="stat-value">{{ stat.value }}</div>
-            <div class="stat-label">{{ stat.label }}</div>
+      <!-- Metrics -->
+      <div class="metrics-grid">
+        <div *ngFor="let m of metrics()" class="metric-card card">
+          <div class="metric-top">
+            <span class="metric-label">{{ m.label }}</span>
+            <div class="metric-icon">
+              <sc-icon [name]="m.icon" [size]="16"></sc-icon>
+            </div>
           </div>
-          <a *ngIf="stat.link" [routerLink]="stat.link" class="stat-link">View →</a>
+          <div class="metric-value">{{ m.value }}</div>
+          <a *ngIf="m.link" [routerLink]="m.link" class="metric-link">
+            View all
+            <sc-icon name="arrow-left" [size]="13" [stroke]="2" style="transform:rotate(180deg)"></sc-icon>
+          </a>
         </div>
       </div>
 
+      <!-- Bottom grid -->
       <div class="dashboard-grid">
-        <section class="card">
-          <h2>Quick Actions</h2>
-          <div class="quick-actions" *ngIf="auth.isAdmin()">
-            <a routerLink="/centers/new" class="action-btn">➕ Add Center</a>
-            <a routerLink="/applications" class="action-btn">📋 Review Applications</a>
-            <a routerLink="/teachers" class="action-btn">👨‍🏫 Manage Teachers</a>
-            <a routerLink="/analytics" class="action-btn">📈 View Reports</a>
+
+        <!-- Quick actions -->
+        <section class="card section-card">
+          <h2 class="section-heading">Quick actions</h2>
+          <div class="actions-list" *ngIf="auth.isAdmin()">
+            <a *ngFor="let action of adminActions" [routerLink]="action.path" class="action-item">
+              <div class="action-icon">
+                <sc-icon [name]="action.icon" [size]="17"></sc-icon>
+              </div>
+              <div class="action-text">
+                <div class="action-label">{{ action.label }}</div>
+                <div class="action-desc">{{ action.description }}</div>
+              </div>
+              <sc-icon name="chevron-right" [size]="16" [stroke]="2" class="action-arrow"></sc-icon>
+            </a>
           </div>
-          <div class="quick-actions" *ngIf="!auth.isAdmin()">
-            <a routerLink="/schedule/new" class="action-btn">📅 Schedule a Class</a>
-            <a routerLink="/schedule" class="action-btn">📋 View My Schedule</a>
+          <div class="actions-list" *ngIf="!auth.isAdmin()">
+            <a *ngFor="let action of teacherActions" [routerLink]="action.path" class="action-item">
+              <div class="action-icon">
+                <sc-icon [name]="action.icon" [size]="17"></sc-icon>
+              </div>
+              <div class="action-text">
+                <div class="action-label">{{ action.label }}</div>
+                <div class="action-desc">{{ action.description }}</div>
+              </div>
+              <sc-icon name="chevron-right" [size]="16" [stroke]="2" class="action-arrow"></sc-icon>
+            </a>
           </div>
         </section>
 
-        <section class="card">
-          <h2>Platform Overview</h2>
+        <!-- Platform overview -->
+        <section class="card section-card">
+          <h2 class="section-heading">Platform</h2>
           <div class="overview-list">
-            <div class="overview-item">
-              <span class="overview-label">Platform</span>
+            <div class="overview-row">
+              <span class="overview-label">Product</span>
               <span class="overview-value">Scholo</span>
             </div>
-            <div class="overview-item">
+            <div class="overview-row">
               <span class="overview-label">Version</span>
-              <span class="overview-value">Admin v1.0</span>
+              <span class="overview-value">Admin 1.0</span>
             </div>
-            <div class="overview-item">
+            <div class="overview-row">
               <span class="overview-label">Syllabus</span>
               <span class="overview-value">NCERT + Custom</span>
             </div>
+            <div class="overview-row">
+              <span class="overview-label">Role</span>
+              <span class="overview-value role-badge" [class.admin]="auth.isAdmin()">
+                {{ auth.isAdmin() ? 'Administrator' : 'Teacher' }}
+              </span>
+            </div>
           </div>
         </section>
+
       </div>
     </div>
   `,
   styles: [`
-    .dashboard { max-width: 1200px; margin: 0 auto; }
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+    }
 
-    .page-header {
+    .metric-card {
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .metric-top {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 28px;
+      margin-bottom: 2px;
     }
 
-    h1 { margin: 0; font-size: 24px; font-weight: 700; color: #1e293b; }
-    p { margin: 4px 0 0; color: #64748b; font-size: 14px; }
-
-    .btn-primary {
-      padding: 10px 18px;
-      background: #3b82f6;
-      color: #fff;
-      border-radius: 8px;
-      text-decoration: none;
-      font-size: 14px;
-      font-weight: 600;
+    .metric-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      letter-spacing: 0.01em;
     }
 
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: 16px;
-      margin-bottom: 24px;
-    }
-
-    .stat-card {
-      background: #fff;
-      border-radius: 12px;
-      padding: 20px;
-      border-left: 4px solid;
+    .metric-icon {
+      width: 30px;
+      height: 30px;
       display: flex;
       align-items: center;
-      gap: 16px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      justify-content: center;
+      background: var(--surface-secondary);
+      border-radius: var(--r-md);
+      color: var(--text-muted);
+      flex-shrink: 0;
     }
 
-    .stat-icon { font-size: 28px; }
-    .stat-value { font-size: 22px; font-weight: 700; color: #1e293b; }
-    .stat-label { font-size: 12px; color: #64748b; }
-    .stat-link { margin-left: auto; color: #3b82f6; text-decoration: none; font-size: 13px; }
+    .metric-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1;
+      letter-spacing: -0.03em;
+    }
 
+    .metric-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--text-link);
+      text-decoration: none;
+      font-weight: 500;
+      margin-top: 4px;
+    }
+    .metric-link:hover { color: var(--text-link-hv); text-decoration: underline; }
+
+    /* Dashboard grid */
     .dashboard-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-      gap: 20px;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
     }
 
-    .card {
-      background: #fff;
-      border-radius: 12px;
-      padding: 24px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    .section-card { padding: 20px 22px; }
+
+    .section-heading {
+      margin: 0 0 16px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
     }
 
-    h2 { margin: 0 0 16px; font-size: 16px; font-weight: 600; color: #1e293b; }
-
-    .quick-actions {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
+    /* Actions */
+    .actions-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
     }
 
-    .action-btn {
-      padding: 12px;
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
+    .action-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 10px;
+      border-radius: var(--r-md);
       text-decoration: none;
-      color: #374151;
-      font-size: 13px;
-      text-align: center;
-      transition: background 0.15s;
+      transition: background var(--dur-fast);
+      cursor: pointer;
     }
 
-    .action-btn:hover { background: #f1f5f9; }
+    .action-item:hover { background: var(--surface-hover); }
 
-    .overview-list { display: flex; flex-direction: column; gap: 12px; }
-    .overview-item { display: flex; justify-content: space-between; }
-    .overview-label { color: #64748b; font-size: 14px; }
-    .overview-value { font-weight: 600; font-size: 14px; color: #1e293b; }
+    .action-icon {
+      width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--brand-subtle);
+      border-radius: var(--r-md);
+      color: var(--brand-text);
+      flex-shrink: 0;
+    }
+
+    .action-text { flex: 1; }
+
+    .action-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .action-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    .action-arrow { color: var(--text-muted); }
+
+    /* Overview */
+    .overview-list { display: flex; flex-direction: column; }
+
+    .overview-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .overview-row:last-child { border-bottom: none; padding-bottom: 0; }
+
+    .overview-label {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .overview-value {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .role-badge {
+      padding: 2px 10px;
+      border-radius: var(--r-full);
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--surface-secondary);
+      color: var(--text-muted);
+    }
+
+    .role-badge.admin {
+      background: var(--brand-subtle);
+      color: var(--brand-text);
+    }
   `],
 })
 export class DashboardComponent implements OnInit {
-  auth = inject(AdminAuthService);
+  auth    = inject(AdminAuthService);
   private centersService = inject(CentersService);
   private scheduleService = inject(ScheduleService);
   private directory = inject(UsersDirectoryService);
 
-  stats = signal<StatCard[]>([]);
+  metrics = signal<MetricCard[]>([]);
+
+  adminActions: QuickAction[] = [
+    { label: 'Add Center',          description: 'Register a new tuition center',  icon: 'buildings',  path: '/centers/new' },
+    { label: 'Review Applications', description: 'Approve or reject pending apps',  icon: 'clipboard',  path: '/applications' },
+    { label: 'Manage Teachers',     description: 'View and edit teacher accounts',  icon: 'person',     path: '/teachers' },
+    { label: 'View Analytics',      description: 'Platform-wide usage reports',     icon: 'chart-bar',  path: '/analytics' },
+  ];
+
+  teacherActions: QuickAction[] = [
+    { label: 'Schedule a Class', description: 'Add a new session to your calendar', icon: 'calendar', path: '/schedule/new' },
+    { label: 'My Schedule',      description: 'View your upcoming sessions',        icon: 'clipboard', path: '/schedule' },
+  ];
 
   async ngOnInit() {
     if (this.auth.isAdmin()) {
-      this.stats.set([
-        { label: 'Total Centers', value: '—', icon: '🏫', color: '#3b82f6', link: '/centers' },
-        { label: 'Pending Applications', value: '—', icon: '📋', color: '#f59e0b', link: '/applications' },
-        { label: 'Total Teachers', value: '—', icon: '👨‍🏫', color: '#8b5cf6', link: '/teachers' },
+      this.metrics.set([
+        { label: 'Total Centers',        value: '—', icon: 'buildings',  link: '/centers' },
+        { label: 'Pending Applications', value: '—', icon: 'clipboard',  link: '/applications' },
+        { label: 'Total Teachers',       value: '—', icon: 'person',     link: '/teachers' },
       ]);
 
-      // Admin: platform-wide counts — each is cached, so repeat dashboard visits are free reads.
       const [centersRes, teachersRes] = await Promise.all([
         this.centersService.listCenters(),
         this.directory.listTeachers(),
       ]);
-      this.stats.update(s => s.map((card, i) => {
-        if (i === 0 && centersRes.ok) return { ...card, value: centersRes.data?.length ?? 0 };
-        if (i === 2 && teachersRes.ok) return { ...card, value: teachersRes.data?.length ?? 0 };
-        return card;
+
+      this.metrics.update(list => list.map((m, i) => {
+        if (i === 0 && centersRes.ok)  return { ...m, value: centersRes.data?.length ?? 0 };
+        if (i === 2 && teachersRes.ok) return { ...m, value: teachersRes.data?.length ?? 0 };
+        return m;
       }));
     } else {
-      // Teacher: only ever their own data — never a platform-wide count.
-      this.stats.set([
-        { label: 'My Upcoming Classes', value: '—', icon: '📅', color: '#3b82f6', link: '/schedule' },
-        { label: 'My Centers', value: '—', icon: '🏫', color: '#10b981' },
+      this.metrics.set([
+        { label: 'Upcoming Classes', value: '—', icon: 'calendar', link: '/schedule' },
+        { label: 'This Week',        value: '—', icon: 'chart-bar', link: '/analytics' },
+        { label: 'This Month',       value: '—', icon: 'chart-bar', link: '/analytics' },
+        { label: 'All Time',         value: '—', icon: 'chart-bar', link: '/analytics' },
       ]);
 
-      const [scheduleRes, centersRes] = await Promise.all([
+      const [scheduleRes, countsRes] = await Promise.all([
         this.scheduleService.listForCurrentUser(),
-        this.centersService.listMyCenters(),
+        this.scheduleService.getCounts(),
       ]);
 
       const upcoming = (scheduleRes.data ?? []).filter(m => sessionState(m) !== 'past').length;
-      const myCenters = centersRes.data?.length ?? 0;
+      const c = countsRes.data;
 
-      this.stats.set([
-        { label: 'My Upcoming Classes', value: upcoming, icon: '📅', color: '#3b82f6', link: '/schedule' },
-        { label: 'My Centers', value: myCenters, icon: '🏫', color: '#10b981' },
+      this.metrics.set([
+        { label: 'Upcoming Classes', value: upcoming,          icon: 'calendar',  link: '/schedule' },
+        { label: 'This Week',        value: c?.week ?? '—',    icon: 'chart-bar', link: '/analytics' },
+        { label: 'This Month',       value: c?.month ?? '—',   icon: 'chart-bar', link: '/analytics' },
+        { label: 'All Time',         value: c?.total ?? '—',   icon: 'chart-bar', link: '/analytics' },
       ]);
     }
   }
