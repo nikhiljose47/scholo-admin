@@ -111,7 +111,6 @@ export const routes: Routes = [
       },
       {
         path: 'analytics',
-        canActivate: [adminGuard],
         loadComponent: () =>
           import('./features/analytics/analytics.component').then(m => m.AnalyticsComponent),
       },

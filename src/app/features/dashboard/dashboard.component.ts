@@ -329,19 +329,24 @@ export class DashboardComponent implements OnInit {
     } else {
       this.metrics.set([
         { label: 'Upcoming Classes', value: '—', icon: 'calendar', link: '/schedule' },
-        { label: 'My Centers',       value: '—', icon: 'buildings' },
+        { label: 'This Week',        value: '—', icon: 'chart-bar', link: '/analytics' },
+        { label: 'This Month',       value: '—', icon: 'chart-bar', link: '/analytics' },
+        { label: 'All Time',         value: '—', icon: 'chart-bar', link: '/analytics' },
       ]);
 
-      const [scheduleRes, centersRes] = await Promise.all([
+      const [scheduleRes, countsRes] = await Promise.all([
         this.scheduleService.listForCurrentUser(),
-        this.centersService.listMyCenters(),
+        this.scheduleService.getCounts(),
       ]);
 
       const upcoming = (scheduleRes.data ?? []).filter(m => sessionState(m) !== 'past').length;
+      const c = countsRes.data;
 
       this.metrics.set([
-        { label: 'Upcoming Classes', value: upcoming,                       icon: 'calendar', link: '/schedule' },
-        { label: 'My Centers',       value: centersRes.data?.length ?? 0,   icon: 'buildings' },
+        { label: 'Upcoming Classes', value: upcoming,          icon: 'calendar',  link: '/schedule' },
+        { label: 'This Week',        value: c?.week ?? '—',    icon: 'chart-bar', link: '/analytics' },
+        { label: 'This Month',       value: c?.month ?? '—',   icon: 'chart-bar', link: '/analytics' },
+        { label: 'All Time',         value: c?.total ?? '—',   icon: 'chart-bar', link: '/analytics' },
       ]);
     }
   }

@@ -314,7 +314,7 @@ export class ShellComponent {
     { label: 'Applications', icon: 'clipboard',   path: '/applications', adminOnly: true },
     { label: 'Teachers',     icon: 'person',      path: '/teachers',     adminOnly: true },
     { label: 'Students',     icon: 'academic-cap',path: '/students',     adminOnly: true },
-    { label: 'Analytics',    icon: 'chart-bar',   path: '/analytics',    adminOnly: true },
+    { label: 'Analytics',    icon: 'chart-bar',   path: '/analytics' },
     { label: 'Settings',     icon: 'cog',         path: '/settings',     adminOnly: true },
   ];
 
