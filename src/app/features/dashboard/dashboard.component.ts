@@ -306,24 +306,32 @@ export class DashboardComponent implements OnInit {
   teacherActions: QuickAction[] = [
     { label: 'Schedule a Class', description: 'Add a new session to your calendar', icon: 'calendar', path: '/schedule/new' },
     { label: 'My Schedule',      description: 'View your upcoming sessions',        icon: 'clipboard', path: '/schedule' },
+    { label: 'My Profile',       description: 'Update photo, bio and UPI details',  icon: 'person',    path: '/profile' },
   ];
 
   async ngOnInit() {
     if (this.auth.isAdmin()) {
       this.metrics.set([
-        { label: 'Total Centers',        value: '—', icon: 'buildings',  link: '/centers' },
-        { label: 'Pending Applications', value: '—', icon: 'clipboard',  link: '/applications' },
-        { label: 'Total Teachers',       value: '—', icon: 'person',     link: '/teachers' },
+        { label: 'Total Centers',   value: '—', icon: 'buildings',    link: '/centers' },
+        { label: 'Total Teachers',  value: '—', icon: 'person',       link: '/teachers' },
+        { label: 'Classes (Week)',  value: '—', icon: 'calendar',     link: '/schedule' },
+        { label: 'Classes (Month)', value: '—', icon: 'chart-bar',    link: '/analytics' },
+        { label: 'Classes (Total)', value: '—', icon: 'academic-cap', link: '/analytics' },
       ]);
 
-      const [centersRes, teachersRes] = await Promise.all([
+      const [centersRes, teachersRes, countsRes] = await Promise.all([
         this.centersService.listCenters(),
         this.directory.listTeachers(),
+        this.scheduleService.getCounts(),
       ]);
 
+      const c = countsRes.data;
       this.metrics.update(list => list.map((m, i) => {
         if (i === 0 && centersRes.ok)  return { ...m, value: centersRes.data?.length ?? 0 };
-        if (i === 2 && teachersRes.ok) return { ...m, value: teachersRes.data?.length ?? 0 };
+        if (i === 1 && teachersRes.ok) return { ...m, value: teachersRes.data?.length ?? 0 };
+        if (i === 2 && c)              return { ...m, value: c.week };
+        if (i === 3 && c)              return { ...m, value: c.month };
+        if (i === 4 && c)              return { ...m, value: c.total };
         return m;
       }));
     } else {
