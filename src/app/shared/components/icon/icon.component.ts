@@ -22,7 +22,12 @@ const PATHS: Record<string, string> = {
   filter:       `<path d="M3 5h14M6 10h8M9 15h2"/>`,
   'arrow-left': `<path d="M17 10H3m0 0 6-6m-6 6 6 6"/>`,
   'eye':        `<ellipse cx="10" cy="10" rx="7" ry="5"/><circle cx="10" cy="10" r="2"/>`,
-  'academic-cap': `<path d="M10 2 2 7l8 5 8-5-8-5zM2 7v5M6 9.5v5a8 8 0 0 0 8 0v-5"/>`,
+  'academic-cap':     `<path d="M10 2 2 7l8 5 8-5-8-5zM2 7v5M6 9.5v5a8 8 0 0 0 8 0v-5"/>`,
+  camera:             `<path d="M2 7h2l2-3h8l2 3h2a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z"/><circle cx="10" cy="11" r="3"/>`,
+  pencil:             `<path d="M13 3 17 7 7 17H3v-4L13 3z"/>`,
+  'currency-rupee':   `<path d="M6 4h8M6 9h8M6 4c0 3 3 5 5 5M6 9c0 4 4 7 9 7"/>`,
+  template:           `<rect x="3" y="3" width="14" height="14" rx="2"/><path d="M3 8h14M8 3v14"/>`,
+  selector:           `<path d="M10 3v14M3 10h14M5.5 5.5l9 9M14.5 5.5l-9 9"/>`,
 };
 
 @Component({

@@ -7,6 +7,8 @@ export interface UserModel {
   role: GlobalRole;
   enrolledClassIds: string[];
   bio?: string;
+  phone?: string;
+  upiId?: string;
   rating?: number;
   photoUrl?: string;
   /** Admin-set: which tuition center(s) (providers/{id}) a teacher belongs to. */

@@ -1,6 +1,6 @@
 import { Component, inject, signal, computed } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { CommonModule } from '@angular/common';
+import { CommonModule, NgStyle } from '@angular/common';
 import { AdminAuthService } from '../../../core/services/auth/admin-auth.service';
 import { ThemeService } from '../../../core/services/theme/theme.service';
 import { IconComponent } from '../icon/icon.component';
@@ -15,7 +15,7 @@ interface NavItem {
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule, IconComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule, NgStyle, IconComponent],
   template: `
     <div class="shell">
 
@@ -53,14 +53,20 @@ interface NavItem {
 
         <!-- Footer -->
         <div class="sb-footer">
-          <div class="user-row" *ngIf="!collapsed()">
-            <div class="user-avatar">{{ userInitials() }}</div>
+          <a routerLink="/profile" class="user-row user-row-link" *ngIf="!collapsed()" title="Edit profile">
+            <div class="user-avatar" [ngStyle]="avatarStyle()">
+              <span *ngIf="!auth.userProfile()?.photoUrl">{{ userInitials() }}</span>
+            </div>
             <div class="user-info">
               <div class="user-name truncate">{{ auth.userProfile()?.name ?? 'Admin' }}</div>
               <div class="user-role">{{ auth.userProfile()?.role ?? 'Admin' }}</div>
             </div>
-          </div>
-          <div class="user-avatar avatar-sm" *ngIf="collapsed()">{{ userInitials() }}</div>
+            <sc-icon name="pencil" [size]="12" class="edit-icon"></sc-icon>
+          </a>
+          <a routerLink="/profile" class="user-avatar avatar-sm" *ngIf="collapsed()" title="Edit profile"
+             [ngStyle]="avatarStyle()">
+            <span *ngIf="!auth.userProfile()?.photoUrl">{{ userInitials() }}</span>
+          </a>
 
           <div class="footer-actions">
             <button
@@ -220,6 +226,25 @@ interface NavItem {
       overflow: hidden;
     }
 
+    .user-row-link {
+      text-decoration: none;
+      border-radius: var(--r-md);
+      padding: 4px 6px;
+      margin: -4px -6px;
+      transition: background var(--dur-fast);
+    }
+
+    .user-row-link:hover { background: var(--sb-hover-bg); }
+
+    .edit-icon {
+      color: var(--sb-text);
+      opacity: 0;
+      flex-shrink: 0;
+      transition: opacity var(--dur-fast);
+    }
+
+    .user-row-link:hover .edit-icon { opacity: 1; }
+
     .user-avatar {
       width: 30px;
       height: 30px;
@@ -321,6 +346,7 @@ export class ShellComponent {
     { label: 'Teachers',        icon: 'person',       path: '/teachers',     adminOnly: true },
     { label: 'Students',        icon: 'academic-cap', path: '/students',     adminOnly: true },
     { label: 'Analytics',       icon: 'chart-bar',    path: '/analytics' },
+    { label: 'Profile',         icon: 'person',       path: '/profile' },
     { label: 'Settings',        icon: 'cog',          path: '/settings',     adminOnly: true },
   ];
 
@@ -331,6 +357,17 @@ export class ShellComponent {
   userInitials = computed(() => {
     const name = this.auth.userProfile()?.name ?? 'A';
     return name.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase();
+  });
+
+  avatarStyle = computed((): Record<string, string> => {
+    const url = this.auth.userProfile()?.photoUrl;
+    if (!url) return {};
+    return {
+      'background-image': `url('${url}')`,
+      'background-size': 'cover',
+      'background-position': 'center',
+      'color': 'transparent',
+    };
   });
 
   toggleCollapse() {

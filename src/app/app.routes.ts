@@ -147,6 +147,11 @@ export const routes: Routes = [
           import('./features/analytics/analytics.component').then(m => m.AnalyticsComponent),
       },
       {
+        path: 'profile',
+        loadComponent: () =>
+          import('./features/profile/profile.component').then(m => m.ProfileComponent),
+      },
+      {
         path: 'settings',
         canActivate: [adminGuard],
         loadComponent: () =>

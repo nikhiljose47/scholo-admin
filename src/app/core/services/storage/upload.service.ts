@@ -5,8 +5,14 @@ import {
 
 export const MAX_LIVE_IMAGES = 4;
 const MAX_LONG_SIDE = 720;
+const MAX_AVATAR_SIDE = 256;
 const TARGET_BYTES = 150 * 1024;
+const TARGET_AVATAR_BYTES = 40 * 1024;
 const MAX_INPUT_BYTES = 20 * 1024 * 1024;
+
+export function avatarPath(uid: string): string {
+  return `users/${uid}/avatar.webp`;
+}
 
 /** Storage path for one image slot (1..4) of a meeting. Fixed so cleanup is a prefix rule. */
 export function liveImagePath(meetingId: string, slot: number): string {
@@ -77,6 +83,45 @@ export class UploadService {
     return new Promise<string>((resolve, reject) => {
       task.on(
         'state_changed',
+        s => onProgress?.(s.totalBytes ? s.bytesTransferred / s.totalBytes : 0),
+        err => reject(err),
+        () => getDownloadURL(task.snapshot.ref).then(resolve, reject),
+      );
+    });
+  }
+
+  /** Resize to ~256px and encode as WebP for an avatar, then upload; resolves with download URL. */
+  async uploadAvatar(uid: string, file: File, onProgress?: (fraction: number) => void): Promise<string> {
+    if (!file.type.startsWith('image/')) throw new Error(`${file.name} is not an image.`);
+    if (file.size > MAX_INPUT_BYTES) throw new Error(`${file.name} is too large (max 20 MB).`);
+
+    let bitmap: ImageBitmap;
+    try { bitmap = await createImageBitmap(file); } catch {
+      throw new Error(`${file.name} could not be read as an image.`);
+    }
+
+    let blob!: Blob;
+    try {
+      const scale = Math.min(1, MAX_AVATAR_SIDE / Math.max(bitmap.width, bitmap.height));
+      const w = Math.max(1, Math.round(bitmap.width * scale));
+      const h = Math.max(1, Math.round(bitmap.height * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(bitmap, 0, 0, w, h);
+      for (const q of [0.85, 0.75, 0.65, 0.55, 0.45]) {
+        const b = await new Promise<Blob | null>(res => canvas.toBlob(res, 'image/webp', q));
+        if (!b) throw new Error('This browser cannot encode WebP images.');
+        blob = b;
+        if (b.size <= TARGET_AVATAR_BYTES) break;
+      }
+    } finally { bitmap.close(); }
+
+    const task = uploadBytesResumable(ref(this.storage, avatarPath(uid)), blob, {
+      contentType: 'image/webp', cacheControl: 'public,max-age=86400',
+    });
+    return new Promise<string>((resolve, reject) => {
+      task.on('state_changed',
         s => onProgress?.(s.totalBytes ? s.bytesTransferred / s.totalBytes : 0),
         err => reject(err),
         () => getDownloadURL(task.snapshot.ref).then(resolve, reject),
