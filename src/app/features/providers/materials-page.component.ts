@@ -132,7 +132,7 @@ export class MaterialsPageComponent implements OnInit {
     this.loading.set(true);
     const [mats, syl] = await Promise.all([
       this.service.listMaterials(id),
-      this.syllabus.loadClass(id).catch(() => null),
+      this.syllabus.loadAnyClass(id).catch(() => null),
     ]);
     if (!mats.ok) this.error.set(`Couldn't load materials: ${mats.message}`);
     this.materials.set(mats.data ?? []);

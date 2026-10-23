@@ -5,5 +5,6 @@
   "assets": {
     "directory": "./dist/scholo-admin/browser",
     "not_found_handling": "single-page-application"
-  }
+  },
+  "previews": {}
 }

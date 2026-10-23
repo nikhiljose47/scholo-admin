@@ -96,7 +96,7 @@ interface ProgressCard {
             </ol>
           </ng-container>
           <ng-template #noSyllabus>
-            <p class="muted">The syllabus for this class isn't available yet, so chapters can't be tracked.</p>
+            <p class="muted">No syllabus found for class id "{{ g.classId }}", so chapters can't be tracked.</p>
           </ng-template>
         </article>
       </div>
@@ -192,7 +192,7 @@ export class ClassProgressComponent implements OnInit {
     const cards = await Promise.all(linked.map(async (c): Promise<ProgressCard> => {
       const centerId = c.providerId!;
       const [syl, curCode] = await Promise.all([
-        this.syllabus.loadClass(c.id).catch(() => null),
+        this.syllabus.loadAnyClass(c.classId || c.id).catch(() => null),
         this.progress.getCurrentChapter(c.id, centerId).catch(() => null),
       ]);
       return {
@@ -200,7 +200,7 @@ export class ClassProgressComponent implements OnInit {
         classId: c.id,
         centerId,
         centerName: names.get(centerId) ?? centerId,
-        className: syl?.className ?? c.name ?? c.className ?? c.title ?? c.id,
+        className: c.title ?? syl?.className ?? c.name ?? c.className ?? c.id,
         chapters: (syl?.subjects ?? []).flatMap(s => s.chapters).filter(ch => ch.enabled !== false),
         curCode,
         saving: false,

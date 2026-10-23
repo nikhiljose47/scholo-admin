@@ -18,6 +18,8 @@ export interface ProviderDoc {
 export interface ClassDoc {
   id: string;
   providerId?: string;
+  /** Syllabus catalog id; the learner app also uses it as the doc id. */
+  classId?: string;
   name?: string;
   className?: string;
   title?: string;
