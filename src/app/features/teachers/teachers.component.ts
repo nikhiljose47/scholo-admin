@@ -2,7 +2,9 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { UsersDirectoryService } from '../../core/services/users/users-directory.service';
 import { FirestoreService } from '../../core/services/fire/firestore.service';
+import { ProvidersService } from '../providers/providers.service';
 import { UserModel } from '../../models/user/user.model';
+import { ProviderDoc } from '../../models/content/content.model';
 
 @Component({
   selector: 'app-teachers',
@@ -30,12 +32,31 @@ import { UserModel } from '../../models/user/user.model';
             <div class="name">{{ t.name }}</div>
             <div class="email">{{ t.email }}</div>
           </div>
-          <div class="meta">
+          <div class="controls">
+            <!-- canEditContent -->
             <label class="perm" title="Lets this teacher update class progress and other content">
               <input type="checkbox" [checked]="t.canEditContent === true" [disabled]="saving() === t.uid"
                      (change)="setCanEdit(t, $any($event.target).checked)" />
               Can edit content
             </label>
+
+            <!-- tuitionCenterIds -->
+            <div class="centers-row">
+              <span class="centers-label">Tuition centers</span>
+              <div class="centers-list" *ngIf="providers().length; else loadingProviders">
+                <label *ngFor="let p of providers()" class="center-chip"
+                       [class.on]="isAssigned(t, p.id)"
+                       [class.busy]="saving() === t.uid">
+                  <input type="checkbox"
+                         [checked]="isAssigned(t, p.id)"
+                         [disabled]="saving() === t.uid"
+                         (change)="toggleCenter(t, p.id, $any($event.target).checked)" />
+                  {{ p.name || p.id }}
+                </label>
+              </div>
+              <ng-template #loadingProviders><span class="muted-sm">Loading centers…</span></ng-template>
+            </div>
+
             <span class="role-badge">Teacher</span>
           </div>
         </div>
@@ -61,7 +82,7 @@ import { UserModel } from '../../models/user/user.model';
       border-radius: 10px;
       padding: 16px;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 14px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
@@ -83,34 +104,55 @@ import { UserModel } from '../../models/user/user.model';
     .name { font-weight: 600; color: #1e293b; font-size: 15px; }
     .email { color: #64748b; font-size: 13px; }
 
-    .meta { display: flex; align-items: center; gap: 14px; }
-    .perm { font-size: 13px; color: #475569; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+    .controls { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; flex: 1; }
+    .perm { font-size: 13px; color: #475569; display: flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; }
+    .centers-row { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 200px; }
+    .centers-label { font-size: 12px; color: #64748b; font-weight: 500; }
+    .centers-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .center-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; font-size: 12px; background: #f1f5f9; color: #334155; cursor: pointer; border: 1px solid #e2e8f0; transition: background .15s, border-color .15s; }
+    .center-chip.on { background: #eff6ff; border-color: #3b82f6; color: #1d4ed8; }
+    .center-chip.busy { opacity: .5; pointer-events: none; }
+    .center-chip input { display: none; }
+    .muted-sm { font-size: 12px; color: #94a3b8; }
     .error { color: #b91c1c; background: #fef2f2; padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; font-size: 13px; }
-    .role-badge { padding: 3px 10px; background: #f3e8ff; color: #6b21a8; border-radius: 12px; font-size: 11px; font-weight: 600; }
+    .role-badge { padding: 3px 10px; background: #f3e8ff; color: #6b21a8; border-radius: 12px; font-size: 11px; font-weight: 600; white-space: nowrap; align-self: center; }
   `],
 })
 export class TeachersComponent implements OnInit {
   private directory = inject(UsersDirectoryService);
+  private providersService = inject(ProvidersService);
   private fs = inject(FirestoreService);
+
   teachers = signal<UserModel[]>([]);
+  providers = signal<ProviderDoc[]>([]);
   saving = signal('');
   error = signal('');
   loading = signal(true);
 
   async ngOnInit() {
-    const res = await this.directory.listTeachers();
-    this.teachers.set(res.data ?? []);
+    const [teachersRes, providersRes] = await Promise.all([
+      this.directory.listTeachers(),
+      this.providersService.listProviders(),
+    ]);
+    this.teachers.set(teachersRes.data ?? []);
+    this.providers.set(providersRes.data ?? []);
     this.loading.set(false);
   }
 
-  /** Admin-only write (enforced by Firestore rules too); optimistic with rollback. */
-  async setCanEdit(t: UserModel, value: boolean) {
+  isAssigned(t: UserModel, centerId: string): boolean {
+    return (t.tuitionCenterIds ?? []).includes(centerId);
+  }
+
+  /** Toggle one center in/out of the teacher's tuitionCenterIds — admin-only. */
+  async toggleCenter(t: UserModel, centerId: string, checked: boolean) {
     this.error.set('');
     this.saving.set(t.uid);
-    this.patch(t.uid, value);
-    const res = await this.fs.update(`users/${t.uid}`, { canEditContent: value });
+    const current = t.tuitionCenterIds ?? [];
+    const next = checked ? [...new Set([...current, centerId])] : current.filter(id => id !== centerId);
+    this.patchCenters(t.uid, next);
+    const res = await this.fs.update(`users/${t.uid}`, { tuitionCenterIds: next });
     if (!res.ok) {
-      this.patch(t.uid, !value);
+      this.patchCenters(t.uid, current);
       this.error.set(`Couldn't update ${t.name}: ${res.message}`);
     } else {
       this.directory.invalidate();
@@ -118,7 +160,26 @@ export class TeachersComponent implements OnInit {
     this.saving.set('');
   }
 
-  private patch(uid: string, value: boolean) {
+  private patchCenters(uid: string, ids: string[]) {
+    this.teachers.update(ts => ts.map(x => (x.uid === uid ? { ...x, tuitionCenterIds: ids } : x)));
+  }
+
+  /** Admin-only write (enforced by Firestore rules too); optimistic with rollback. */
+  async setCanEdit(t: UserModel, value: boolean) {
+    this.error.set('');
+    this.saving.set(t.uid);
+    this.patchCanEdit(t.uid, value);
+    const res = await this.fs.update(`users/${t.uid}`, { canEditContent: value });
+    if (!res.ok) {
+      this.patchCanEdit(t.uid, !value);
+      this.error.set(`Couldn't update ${t.name}: ${res.message}`);
+    } else {
+      this.directory.invalidate();
+    }
+    this.saving.set('');
+  }
+
+  private patchCanEdit(uid: string, value: boolean) {
     this.teachers.update(ts => ts.map(x => (x.uid === uid ? { ...x, canEditContent: value } : x)));
   }
 
