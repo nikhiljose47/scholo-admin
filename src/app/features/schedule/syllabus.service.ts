@@ -19,18 +19,44 @@ export class SyllabusService {
   private http = inject(HttpClient);
   private cache = inject(CacheService);
 
-  listClasses(): Promise<SyllabusIndexEntry[]> {
+  /** Every class in the catalog, enabled or not. */
+  private allClasses(): Promise<(SyllabusIndexEntry & { enabled: boolean })[]> {
     return this.cache.get('syllabus:index', INDEX_TTL, async () => {
       const index = await firstValueFrom(
         this.http.get<SyllabusIndex>(`${environment.syllabusApiBaseUrl}/index/syllabus-index.json${CACHE_VARIANT}`),
       );
-      // Live index lists everything under `catalog`; only enabled classes are offered.
+      // Live index lists everything under `catalog`.
       if (index.catalog) {
         return index.catalog
-          .filter(e => e.type === 'class' && e.enabled && e.file)
-          .map(e => ({ classId: e.id, className: e.title, file: e.file! }));
+          .filter(e => e.type === 'class' && e.file)
+          .map(e => ({ classId: e.id, className: e.title, file: e.file!, enabled: e.enabled === true }));
       }
-      return index.classes ?? [];
+      return (index.classes ?? []).map(e => ({ ...e, enabled: true }));
+    });
+  }
+
+  /** Classes offered for scheduling: enabled ones only. */
+  async listClasses(): Promise<SyllabusIndexEntry[]> {
+    return (await this.allClasses()).filter(e => e.enabled);
+  }
+
+  /** Enabled classes only — used where a class must be open to students (schedule form). */
+  loadClass(classId: string): Promise<ClassSyllabus | null> {
+    return this.load(classId, true);
+  }
+
+  /** Any catalog class, even if not enabled yet — for admin/teacher tools that track classes already in Firestore. */
+  loadAnyClass(classId: string): Promise<ClassSyllabus | null> {
+    return this.load(classId, false);
+  }
+
+  private load(classId: string, enabledOnly: boolean): Promise<ClassSyllabus | null> {
+    return this.cache.get(`syllabus:class:${classId}:${enabledOnly ? 'enabled' : 'any'}`, CLASS_TTL, async () => {
+      const entry = (await this.allClasses()).find(e => e.classId === classId && (!enabledOnly || e.enabled));
+      if (!entry) return null;
+      return firstValueFrom(
+        this.http.get<ClassSyllabus>(`${environment.syllabusApiBaseUrl}/syllabus/${entry.file}${CACHE_VARIANT}`),
+      );
     });
   }
 
@@ -54,17 +80,6 @@ export class SyllabusService {
       if (!file) return null;
       return firstValueFrom(
         this.http.get<ClassPuzzles>(`${environment.syllabusApiBaseUrl}/${file}${CACHE_VARIANT}`),
-      );
-    });
-  }
-
-  async loadClass(classId: string): Promise<ClassSyllabus | null> {
-    return this.cache.get(`syllabus:class:${classId}`, CLASS_TTL, async () => {
-      const entries = await this.listClasses();
-      const entry = entries.find(e => e.classId === classId);
-      if (!entry) return null;
-      return firstValueFrom(
-        this.http.get<ClassSyllabus>(`${environment.syllabusApiBaseUrl}/syllabus/${entry.file}${CACHE_VARIANT}`),
       );
     });
   }
