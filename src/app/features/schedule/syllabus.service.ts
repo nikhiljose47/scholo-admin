@@ -40,6 +40,11 @@ export class SyllabusService {
     return (await this.allClasses()).filter(e => e.enabled);
   }
 
+  /** Every class in the catalog, including disabled ones — for admin/teacher tools. */
+  async listAllClasses(): Promise<(SyllabusIndexEntry & { enabled: boolean })[]> {
+    return this.allClasses();
+  }
+
   /** Enabled classes only — used where a class must be open to students (schedule form). */
   loadClass(classId: string): Promise<ClassSyllabus | null> {
     return this.load(classId, true);
