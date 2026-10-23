@@ -5,7 +5,9 @@ import { ProvidersService } from './providers.service';
 import { ProviderDoc } from '../../models/content/content.model';
 
 interface Draft {
+  status: string;
   plan: string;
+  acceptingEnquiries: boolean;
   rating: number | null;
   reviewCount: number | null;
   initials: string;
@@ -40,8 +42,9 @@ interface Draft {
             <span class="avatar">{{ p.initials || (p.name || p.id).slice(0, 2).toUpperCase() }}</span>
             <span class="meta">
               <strong>{{ p.name || p.id }}</strong>
-              <small>{{ p.plan || 'no plan set' }}</small>
+              <small>{{ p.status || 'no status' }} · {{ p.plan || 'no plan' }}</small>
             </span>
+            <span class="status-dot" [class]="p.status || 'none'" title="{{ p.status || 'not set' }}"></span>
             <span class="lock" *ngIf="p.locked" title="Coming soon">🔒</span>
           </button>
           <p class="muted" *ngIf="!loading() && !providers().length">No providers found.</p>
@@ -53,6 +56,14 @@ interface Draft {
           <section>
             <h3>Plan &amp; status</h3>
             <div class="row">
+              <label>Listing status
+                <select name="status" [(ngModel)]="d.status">
+                  <option value="">Not set</option>
+                  <option value="published">Published — visible to learners</option>
+                  <option value="pending">Pending — hidden, awaiting review</option>
+                  <option value="inactive">Inactive — removed from listing</option>
+                </select>
+              </label>
               <label>Plan
                 <select name="plan" [(ngModel)]="d.plan">
                   <option value="">Not set</option>
@@ -60,6 +71,9 @@ interface Draft {
                   <option value="scholo-premium">Scholo Premium</option>
                 </select>
               </label>
+            </div>
+            <div class="row">
+              <label class="check"><input type="checkbox" name="acceptingEnquiries" [(ngModel)]="d.acceptingEnquiries" /> Accepting enquiries</label>
               <label class="check"><input type="checkbox" name="locked" [(ngModel)]="d.locked" /> Locked — "coming soon"</label>
             </div>
           </section>
@@ -126,6 +140,10 @@ interface Draft {
     input:not([type=checkbox]), select, textarea { padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }
     .btn-primary { margin-top: 14px; background: #3b82f6; color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; }
     .btn-primary:disabled { background: #cbd5e1; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: #cbd5e1; }
+    .status-dot.published { background: #22c55e; }
+    .status-dot.pending { background: #f59e0b; }
+    .status-dot.inactive { background: #ef4444; }
   `],
 })
 export class ProvidersPageComponent implements OnInit {
@@ -153,7 +171,9 @@ export class ProvidersPageComponent implements OnInit {
     this.selectedId.set(p.id);
     this.selected.set(p);
     this.draft.set({
+      status: p.status ?? '',
       plan: p.plan ?? '',
+      acceptingEnquiries: p.acceptingEnquiries === true,
       rating: p.rating ?? null,
       reviewCount: p.reviewCount ?? null,
       initials: p.initials ?? '',
@@ -183,7 +203,9 @@ export class ProvidersPageComponent implements OnInit {
 
     // null = remove the field, so "left blank" really means unset (these are optional, no defaults).
     const fields = {
+      status: (d.status as ProviderDoc['status']) || null,
       plan: d.plan || null,
+      acceptingEnquiries: d.acceptingEnquiries ? true : null,
       rating: d.rating ?? null,
       reviewCount: d.reviewCount ?? null,
       initials: d.initials.trim() || null,
@@ -206,7 +228,9 @@ export class ProvidersPageComponent implements OnInit {
     this.saved.set('Saved.');
     const updated: ProviderDoc = {
       ...this.selected()!,
+      status: (d.status as ProviderDoc['status']) || undefined,
       plan: (d.plan || undefined) as ProviderDoc['plan'],
+      acceptingEnquiries: d.acceptingEnquiries || undefined,
       rating: d.rating ?? undefined,
       reviewCount: d.reviewCount ?? undefined,
       initials: d.initials.trim() || undefined,

@@ -2,7 +2,9 @@
 export interface ProviderDoc {
   id: string;
   name?: string;
+  status?: 'published' | 'pending' | 'inactive';
   plan?: 'scholo-basic' | 'scholo-premium';
+  acceptingEnquiries?: boolean;
   rating?: number | null;
   reviewCount?: number;
   initials?: string;
