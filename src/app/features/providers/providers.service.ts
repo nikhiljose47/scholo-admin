@@ -34,6 +34,13 @@ export class ProvidersService {
     return res;
   }
 
+  /** Sets the syllabus catalog class ID on a Firestore class doc. */
+  async setClassSyllabus(firestoreId: string, syllabusClassId: string | null): Promise<FireResponse<void>> {
+    const res = await this.fs.setMerge(`classes/${firestoreId}`, { classId: syllabusClassId ?? deleteField() });
+    this.cache.invalidate('classes:list');
+    return res;
+  }
+
   listMaterials(classId: string): Promise<FireResponse<MaterialDoc[]>> {
     return this.fs.getAllOnce<MaterialDoc>(`classes/${classId}/materials`);
   }
