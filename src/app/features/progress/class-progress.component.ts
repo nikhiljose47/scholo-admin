@@ -7,12 +7,9 @@ import { ClassProgressService } from './class-progress.service';
 import { AdminAuthService } from '../../core/services/auth/admin-auth.service';
 import { Chapter } from '../../models/syllabus/syllabus.model';
 
-/** One syllabus class taught at one tuition center — the unit progress is tracked for. */
 interface ProgressCard {
   key: string;
-  /** Firestore doc id — used as the Firestore path key for progress. */
   docId: string;
-  /** Syllabus catalog id (e.g. "CL09_MATH") — used for syllabus lookup and chapter codes. */
   classId: string;
   centerId: string;
   centerName: string;
@@ -21,7 +18,6 @@ interface ProgressCard {
   curCode: string | null;
   saving: boolean;
   saved: boolean;
-  open: boolean;
 }
 
 @Component({
@@ -31,14 +27,14 @@ interface ProgressCard {
   template: `
     <div class="page">
       <header class="page-header">
-        <h1>Class Progress</h1>
-        <p>After finishing a chapter in class, press the green button to move to the next one.</p>
+        <h1 class="page-title">Class Progress</h1>
+        <p class="page-subtitle">Select a class below to view and update its chapter progress.</p>
       </header>
 
       <div class="notice warn" *ngIf="!canEdit()">
-        🔒 You can view progress but cannot update it. Ask an admin to enable the "can edit content" permission for your account.
+        🔒 You can view progress but cannot update it. Ask an admin to enable the "can edit content" permission.
       </div>
-      <div class="notice error" *ngIf="toast() as t">⚠ {{ t }}</div>
+      <div class="notice error" *ngIf="toast()">⚠ {{ toast() }}</div>
 
       <div *ngIf="loading()" class="loading">Loading your classes…</div>
 
@@ -47,144 +43,407 @@ interface ProgressCard {
         <p>{{ emptyMessage() }}</p>
       </div>
 
-      <!-- One section per tuition center -->
-      <ng-container *ngFor="let group of cardsByCenter()">
-        <section class="center-section">
-          <h2 class="center-heading">🏫 {{ group.centerName }}</h2>
-          <div class="grid">
-            <article class="card" *ngFor="let g of group.cards">
+      <!-- Class picker cards -->
+      <ng-container *ngIf="!loading() && cards().length">
+        <ng-container *ngFor="let group of cardsByCenter()">
+          <div class="center-label">🏫 {{ group.centerName }}</div>
+          <div class="cards-row">
+            <button
+              class="class-card"
+              *ngFor="let g of group.cards"
+              [class.selected]="selected()?.key === g.key"
+              (click)="selectCard(g)">
 
-              <div class="card-top">
-                <h3>{{ g.className }}</h3>
-                <div class="progress-ring">
-                  <svg viewBox="0 0 40 40" width="48" height="48">
-                    <circle cx="20" cy="20" r="16" fill="none" stroke="#e2e8f0" stroke-width="4"/>
-                    <circle cx="20" cy="20" r="16" fill="none" stroke="#22c55e" stroke-width="4"
-                      [attr.stroke-dasharray]="circumference"
-                      [attr.stroke-dashoffset]="circumference - (pct(g) / 100) * circumference"
-                      stroke-linecap="round" transform="rotate(-90 20 20)"/>
-                  </svg>
-                  <span class="ring-pct">{{ pct(g) }}%</span>
+              <div class="class-card-ring">
+                <svg viewBox="0 0 40 40" width="44" height="44">
+                  <circle cx="20" cy="20" r="16" fill="none" stroke="var(--ring-bg)" stroke-width="4"/>
+                  <circle cx="20" cy="20" r="16" fill="none" stroke="var(--ring-fg)" stroke-width="4"
+                    [attr.stroke-dasharray]="circumference"
+                    [attr.stroke-dashoffset]="circumference - (pct(g) / 100) * circumference"
+                    stroke-linecap="round" transform="rotate(-90 20 20)"/>
+                </svg>
+                <span class="ring-pct">{{ pct(g) }}%</span>
+              </div>
+
+              <div class="class-card-info">
+                <div class="class-card-name">{{ g.className }}</div>
+                <div class="class-card-status" *ngIf="g.chapters.length">
+                  {{ doneCount(g) }}/{{ g.chapters.length }} chapters
+                </div>
+                <div class="class-card-status warn-text" *ngIf="!g.chapters.length">
+                  No syllabus linked
                 </div>
               </div>
 
-              <ng-container *ngIf="g.chapters.length; else noSyllabus">
-                <div class="bar"><div class="fill" [style.width.%]="pct(g)"></div></div>
-                <div class="bar-label">{{ doneCount(g) }} of {{ g.chapters.length }} chapters completed</div>
+              <div class="class-card-arrow">›</div>
+            </button>
+          </div>
+        </ng-container>
 
-                <div class="current-box">
-                  <div class="current-label">
-                    {{ currentIdx(g) >= 0 ? 'Currently teaching — Chapter ' + (currentIdx(g) + 1) + ' of ' + g.chapters.length : 'Not started yet' }}
-                  </div>
-                  <div class="current-name">
-                    {{ currentIdx(g) >= 0 ? g.chapters[currentIdx(g)].name : g.chapters[0].name }}
-                  </div>
+        <!-- Chapter detail panel (appears below when a class is selected) -->
+        <div class="detail-panel" *ngIf="selected() as g">
 
-                  <div class="saved-msg" *ngIf="g.saved">✅ Saved!</div>
+          <div class="detail-header">
+            <div class="detail-title-row">
+              <div>
+                <div class="detail-class-name">{{ g.className }}</div>
+                <div class="detail-center-name">{{ g.centerName }}</div>
+              </div>
+              <button class="close-btn" (click)="selectCard(null)" title="Close">✕</button>
+            </div>
 
-                  <div class="actions" *ngIf="!g.saved">
-                    <button class="btn-start" *ngIf="currentIdx(g) < 0"
-                            [disabled]="!canEdit() || g.saving"
-                            (click)="confirmAndSetNext(g, g.chapters[0].code, g.chapters[0].name, 1)">
-                      {{ g.saving ? 'Saving…' : '▶ Start teaching this class' }}
-                    </button>
-                    <button class="btn-next" *ngIf="currentIdx(g) >= 0 && currentIdx(g) < g.chapters.length - 1"
-                            [disabled]="!canEdit() || g.saving"
-                            (click)="confirmAndSetNext(g, g.chapters[currentIdx(g) + 1].code, g.chapters[currentIdx(g) + 1].name, currentIdx(g) + 2)">
-                      <span *ngIf="!g.saving">
-                        ✓ Done with this chapter<br>
-                        <small>Next: Chapter {{ currentIdx(g) + 2 }} — {{ g.chapters[currentIdx(g) + 1].name }}</small>
-                      </span>
-                      <span *ngIf="g.saving">Saving…</span>
-                    </button>
-                    <div class="final-badge" *ngIf="currentIdx(g) === g.chapters.length - 1">
-                      🏁 All chapters completed!
-                    </div>
-                  </div>
-                </div>
+            <!-- Progress bar -->
+            <div class="detail-progress-row" *ngIf="g.chapters.length">
+              <div class="progress-bar">
+                <div class="progress-fill" [style.width.%]="pct(g)"></div>
+              </div>
+              <span class="progress-label">{{ doneCount(g) }} of {{ g.chapters.length }} chapters done</span>
+            </div>
 
-                <button class="toggle-link" (click)="toggle(g)">
-                  {{ g.open ? '▲ Hide chapter list' : '▼ Show all ' + g.chapters.length + ' chapters' }}
+            <!-- Main action button -->
+            <ng-container *ngIf="g.chapters.length && canEdit()">
+              <!-- Not started -->
+              <button class="btn-action btn-start" *ngIf="currentIdx(g) < 0"
+                      [disabled]="g.saving"
+                      (click)="confirmAndSetNext(g, g.chapters[0].code, g.chapters[0].name, 1)">
+                {{ g.saving ? 'Saving…' : '▶ Start — Chapter 1: ' + g.chapters[0].name }}
+              </button>
+
+              <!-- In progress -->
+              <ng-container *ngIf="currentIdx(g) >= 0 && currentIdx(g) < g.chapters.length - 1">
+                <button class="btn-action btn-next" [disabled]="g.saving"
+                        (click)="confirmAndSetNext(g, g.chapters[currentIdx(g)+1].code, g.chapters[currentIdx(g)+1].name, currentIdx(g)+2)">
+                  <span *ngIf="!g.saving">
+                    ✓ Chapter {{ currentIdx(g)+1 }} done — move to Chapter {{ currentIdx(g)+2 }}
+                    <small>{{ g.chapters[currentIdx(g)+1].name }}</small>
+                  </span>
+                  <span *ngIf="g.saving">Saving…</span>
                 </button>
-                <ol class="chapter-list" *ngIf="g.open">
-                  <li *ngFor="let ch of g.chapters; let i = index"
-                      [class]="status(g, i)"
-                      (click)="canEdit() && !g.saving && pick(g, i)"
-                      [class.clickable]="canEdit()">
-                    <span class="dot">{{ status(g, i) === 'done' ? '✓' : i + 1 }}</span>
-                    <span class="ch-name">{{ ch.name }}</span>
-                    <span class="tag" *ngIf="status(g, i) === 'current'">current</span>
-                  </li>
-                </ol>
               </ng-container>
 
-              <ng-template #noSyllabus>
-                <p class="no-syllabus">No syllabus linked yet. An admin can fix this on the Classes page.</p>
-              </ng-template>
-            </article>
+              <!-- All done -->
+              <div class="final-badge" *ngIf="currentIdx(g) === g.chapters.length - 1">
+                🏁 All {{ g.chapters.length }} chapters completed!
+              </div>
+            </ng-container>
+
+            <div class="saved-toast" *ngIf="g.saved">✅ Progress saved!</div>
           </div>
-        </section>
+
+          <!-- Chapters list -->
+          <ng-container *ngIf="g.chapters.length; else noSyllabus">
+            <div class="chapters-heading">All chapters</div>
+            <ol class="chapter-list">
+              <li *ngFor="let ch of g.chapters; let i = index"
+                  [class]="'ch-row ' + status(g, i)">
+
+                <div class="ch-dot">
+                  <span *ngIf="status(g, i) === 'done'">✓</span>
+                  <span *ngIf="status(g, i) !== 'done'">{{ i + 1 }}</span>
+                </div>
+
+                <div class="ch-body">
+                  <div class="ch-name">{{ ch.name }}</div>
+                  <div class="ch-badge" *ngIf="status(g, i) === 'current'">Current chapter</div>
+                </div>
+
+                <button class="btn-set"
+                        *ngIf="canEdit() && status(g, i) !== 'current'"
+                        [disabled]="g.saving"
+                        (click)="pick(g, i)">
+                  Set
+                </button>
+              </li>
+            </ol>
+          </ng-container>
+
+          <ng-template #noSyllabus>
+            <p class="no-syllabus">No syllabus linked yet. An admin can fix this on the Classes page.</p>
+          </ng-template>
+        </div>
       </ng-container>
     </div>
   `,
   styles: [`
-    .page { max-width: 900px; margin: 0 auto; padding-bottom: 40px; }
-    .page-header { margin-bottom: 24px; }
-    h1 { margin: 0 0 4px; font-size: 24px; font-weight: 700; color: #1e293b; }
-    .page-header p { margin: 0; color: #64748b; font-size: 15px; }
+    :host {
+      --ring-bg: #e2e8f0;
+      --ring-fg: #22c55e;
+    }
+
+    .page { max-width: 860px; margin: 0 auto; padding-bottom: 48px; }
 
     .notice { padding: 12px 16px; border-radius: 10px; font-size: 14px; margin-bottom: 16px; }
-    .notice.warn { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+    .notice.warn  { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
     .notice.error { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; }
 
-    .loading { color: #64748b; font-size: 15px; padding: 40px 0; text-align: center; }
-    .empty { text-align: center; padding: 60px 20px; color: #64748b; }
-    .empty span { font-size: 48px; display: block; margin-bottom: 10px; }
-    .empty p { font-size: 15px; }
+    .loading { color: #64748b; font-size: 15px; padding: 48px 0; text-align: center; }
+    .empty { text-align: center; padding: 64px 20px; color: #64748b; }
+    .empty span { font-size: 48px; display: block; margin-bottom: 12px; }
+    .empty p { font-size: 15px; margin: 0; }
 
-    .center-section { margin-bottom: 36px; }
-    .center-heading { margin: 0 0 14px; font-size: 17px; font-weight: 700; color: #7c3aed; display: flex; align-items: center; gap: 6px; }
+    /* Center label */
+    .center-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: #7c3aed;
+      margin: 24px 0 10px;
+      letter-spacing: 0.02em;
+    }
 
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
+    /* Class picker cards */
+    .cards-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 4px;
+    }
 
-    .card { background: #fff; border-radius: 14px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,.07); }
-    .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
-    h3 { margin: 0; font-size: 18px; font-weight: 700; color: #1e293b; line-height: 1.3; flex: 1; }
+    .class-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      background: var(--surface, #fff);
+      border: 2px solid var(--border-subtle, #e2e8f0);
+      border-radius: 14px;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+      min-width: 200px;
+      max-width: 280px;
+      flex: 1;
+    }
 
-    .progress-ring { position: relative; width: 48px; height: 48px; flex-shrink: 0; }
-    .ring-pct { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #15803d; }
+    .class-card:hover {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
+    }
 
-    .bar { height: 8px; background: #e2e8f0; border-radius: 6px; overflow: hidden; }
-    .fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #22c55e); border-radius: 6px; transition: width .4s; }
-    .bar-label { font-size: 12px; color: #64748b; margin-top: 5px; margin-bottom: 14px; }
+    .class-card.selected {
+      border-color: #3b82f6;
+      background: #eff6ff;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    }
 
-    .current-box { background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 12px; padding: 16px; }
-    .current-label { font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 4px; }
-    .current-name { font-size: 17px; font-weight: 700; color: #1e293b; margin-bottom: 14px; line-height: 1.4; }
-    .saved-msg { font-size: 15px; font-weight: 700; color: #15803d; text-align: center; padding: 8px 0 4px; }
+    .class-card-ring { position: relative; width: 44px; height: 44px; flex-shrink: 0; }
+    .ring-pct {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 700; color: #15803d;
+    }
 
-    .actions { display: flex; flex-direction: column; gap: 10px; }
-    .btn-start { width: 100%; padding: 12px 16px; background: #3b82f6; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; }
-    .btn-start:disabled { background: #cbd5e1; cursor: not-allowed; }
-    .btn-next { width: 100%; padding: 14px 16px; background: #16a34a; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; text-align: left; line-height: 1.5; }
-    .btn-next small { font-size: 13px; font-weight: 400; opacity: .9; }
-    .btn-next:disabled { background: #cbd5e1; cursor: not-allowed; }
-    .final-badge { text-align: center; font-size: 15px; font-weight: 700; color: #15803d; padding: 8px; background: #dcfce7; border-radius: 8px; }
+    .class-card-info { flex: 1; min-width: 0; }
+    .class-card-name { font-size: 14px; font-weight: 700; color: #1e293b; line-height: 1.3; }
+    .class-card-status { font-size: 12px; color: #64748b; margin-top: 2px; }
+    .warn-text { color: #f59e0b; }
 
-    .toggle-link { background: none; border: none; color: #3b82f6; cursor: pointer; font-size: 13px; padding: 12px 0 4px; display: block; }
-    .chapter-list { list-style: none; margin: 6px 0 0; padding: 0; max-height: 260px; overflow-y: auto; border-radius: 8px; border: 1px solid #e2e8f0; }
-    .chapter-list li { display: flex; align-items: center; gap: 10px; padding: 9px 12px; font-size: 14px; color: #64748b; border-bottom: 1px solid #f1f5f9; }
-    .chapter-list li:last-child { border-bottom: none; }
-    .chapter-list li.clickable { cursor: pointer; }
-    .chapter-list li.clickable:hover { background: #f8fafc; }
-    .dot { width: 26px; height: 26px; border-radius: 50%; background: #e2e8f0; color: #64748b; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
-    li.done { color: #15803d; }
-    li.done .dot { background: #22c55e; color: #fff; }
-    li.current { color: #1e293b; font-weight: 700; background: #eff6ff; }
-    li.current .dot { background: #3b82f6; color: #fff; }
-    .ch-name { flex: 1; }
-    .tag { background: #3b82f6; color: #fff; font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
-    .no-syllabus { font-size: 13px; color: #94a3b8; font-style: italic; margin: 12px 0 0; }
+    .class-card-arrow { font-size: 22px; color: #cbd5e1; line-height: 1; }
+    .class-card.selected .class-card-arrow { color: #3b82f6; }
+
+    /* Detail panel */
+    .detail-panel {
+      margin-top: 24px;
+      background: var(--surface, #fff);
+      border-radius: 16px;
+      border: 1px solid var(--border-subtle, #e2e8f0);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+      overflow: hidden;
+      animation: panel-in 0.18s ease-out;
+    }
+
+    @keyframes panel-in {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .detail-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid #f1f5f9;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .detail-title-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .detail-class-name { font-size: 20px; font-weight: 700; color: #1e293b; line-height: 1.3; }
+    .detail-center-name { font-size: 13px; color: #64748b; margin-top: 2px; }
+
+    .close-btn {
+      background: none; border: none; cursor: pointer;
+      font-size: 18px; color: #94a3b8; padding: 4px 8px;
+      border-radius: 6px; line-height: 1;
+      transition: background 0.1s, color 0.1s;
+    }
+    .close-btn:hover { background: #f1f5f9; color: #475569; }
+
+    /* Progress bar */
+    .detail-progress-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .progress-bar {
+      flex: 1;
+      height: 8px;
+      background: #e2e8f0;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #3b82f6, #22c55e);
+      border-radius: 6px;
+      transition: width 0.4s;
+    }
+
+    .progress-label { font-size: 12px; color: #64748b; white-space: nowrap; }
+
+    /* Action buttons */
+    .btn-action {
+      width: 100%;
+      padding: 14px 20px;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: left;
+      line-height: 1.5;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      transition: filter 0.1s;
+    }
+
+    .btn-action:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn-action:not(:disabled):hover { filter: brightness(1.05); }
+
+    .btn-start { background: #3b82f6; color: #fff; }
+    .btn-next  { background: #16a34a; color: #fff; }
+
+    .btn-action small {
+      font-size: 12px;
+      font-weight: 400;
+      opacity: 0.88;
+    }
+
+    .final-badge {
+      text-align: center;
+      font-size: 15px;
+      font-weight: 700;
+      color: #15803d;
+      padding: 12px;
+      background: #dcfce7;
+      border-radius: 10px;
+    }
+
+    .saved-toast {
+      text-align: center;
+      font-size: 14px;
+      font-weight: 700;
+      color: #15803d;
+      animation: fade-in 0.2s ease;
+    }
+
+    @keyframes fade-in { from { opacity: 0 } to { opacity: 1 } }
+
+    /* Chapter list */
+    .chapters-heading {
+      padding: 16px 24px 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #94a3b8;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .chapter-list {
+      list-style: none;
+      margin: 0;
+      padding: 0 0 8px;
+    }
+
+    .ch-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 11px 24px;
+      border-bottom: 1px solid #f8fafc;
+      transition: background 0.1s;
+    }
+
+    .ch-row:last-child { border-bottom: none; }
+    .ch-row.done  { opacity: 0.65; }
+    .ch-row.current { background: #f0fdf4; }
+
+    .ch-dot {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      flex-shrink: 0;
+      background: #e2e8f0;
+      color: #64748b;
+    }
+
+    .ch-row.done    .ch-dot { background: #22c55e; color: #fff; }
+    .ch-row.current .ch-dot { background: #3b82f6; color: #fff; }
+
+    .ch-body { flex: 1; min-width: 0; }
+    .ch-name { font-size: 14px; color: #1e293b; line-height: 1.4; }
+    .ch-row.done .ch-name { color: #64748b; }
+
+    .ch-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      color: #1d4ed8;
+      background: #dbeafe;
+      border-radius: 20px;
+      padding: 1px 8px;
+      margin-top: 2px;
+      letter-spacing: 0.02em;
+    }
+
+    .btn-set {
+      padding: 5px 14px;
+      background: none;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #475569;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: border-color 0.12s, color 0.12s, background 0.12s;
+    }
+
+    .btn-set:not(:disabled):hover {
+      border-color: #3b82f6;
+      color: #1d4ed8;
+      background: #eff6ff;
+    }
+
+    .btn-set:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .no-syllabus {
+      padding: 20px 24px;
+      font-size: 13px;
+      color: #94a3b8;
+      font-style: italic;
+    }
   `],
 })
 export class ClassProgressComponent implements OnInit {
@@ -198,8 +457,13 @@ export class ClassProgressComponent implements OnInit {
   loading = signal(true);
   cards = signal<ProgressCard[]>([]);
   toast = signal('');
+  selectedKey = signal<string | null>(null);
 
-  /** Cards grouped by center, in alphabetical center order. */
+  selected = computed(() => {
+    const key = this.selectedKey();
+    return key ? (this.cards().find(c => c.key === key) ?? null) : null;
+  });
+
   cardsByCenter = computed(() => {
     const map = new Map<string, ProgressCard[]>();
     for (const c of this.cards()) {
@@ -233,11 +497,9 @@ export class ClassProgressComponent implements OnInit {
     const linked = (cls.data ?? []).filter(c => c.providerId && centerIds.has(c.providerId));
     const cards = await Promise.all(linked.map(async (c): Promise<ProgressCard> => {
       const centerId = c.providerId!;
-      // catalogId is the syllabus key (e.g. "CL09_MATH"); fall back to doc id for legacy docs.
       const catalogId = c.classId || c.id;
       const [syl, curCode] = await Promise.all([
         this.syllabus.loadAnyClass(catalogId).catch(() => null),
-        // Progress is stored under the Firestore doc id, not the catalog classId.
         this.progress.getCurrentChapter(c.id, centerId).catch(() => null),
       ]);
       return {
@@ -251,11 +513,14 @@ export class ClassProgressComponent implements OnInit {
         curCode,
         saving: false,
         saved: false,
-        open: false,
       };
     }));
     this.cards.set(cards.sort((a, b) => a.centerName.localeCompare(b.centerName) || a.className.localeCompare(b.className)));
     this.loading.set(false);
+  }
+
+  selectCard(g: ProgressCard | null) {
+    this.selectedKey.set(g ? g.key : null);
   }
 
   currentIdx(g: ProgressCard): number {
@@ -270,28 +535,25 @@ export class ClassProgressComponent implements OnInit {
     return i < cur ? 'done' : i === cur ? 'current' : 'todo';
   }
 
-  toggle(g: ProgressCard) { this.patch(g.key, { open: !g.open }); }
-
   pick(g: ProgressCard, i: number) {
     const target = g.chapters[i];
     if (target.code === g.curCode) return;
     const cur = this.currentIdx(g);
 
-    // 2+ chapters back → only admin can do this
     if (i < cur - 1) {
       alert(`You can only go back one chapter at a time.\nTo set an earlier chapter, please ask your admin.`);
       return;
     }
 
-    // 1 chapter back → allowed with confirmation
     if (i === cur - 1) {
       if (!confirm(`Go back to Chapter ${i + 1}: "${target.name}"?\nThe current chapter will be marked as not done.`)) return;
       this.setChapter(g, target.code);
       return;
     }
 
-    // Forward (skipping chapters) → confirm
-    const label = cur < 0 ? `Start with Chapter ${i + 1}: "${target.name}"?` : `Jump to Chapter ${i + 1}: "${target.name}"?\nChapters in between will be marked as done.`;
+    const label = cur < 0
+      ? `Start with Chapter ${i + 1}: "${target.name}"?`
+      : `Jump to Chapter ${i + 1}: "${target.name}"?\nChapters in between will be marked as done.`;
     if (!confirm(label)) return;
     this.setChapter(g, target.code);
   }
@@ -301,7 +563,7 @@ export class ClassProgressComponent implements OnInit {
     const curName = cur >= 0 ? g.chapters[cur].name : '(not started)';
     const msg = cur < 0
       ? `Start teaching Chapter 1: "${nextName}"?`
-      : `Mark Chapter ${cur + 1}: "${curName}" as done\nand start Chapter ${nextNum}: "${nextName}"?`;
+      : `Mark Chapter ${cur + 1}: "${curName}" as done\nand move to Chapter ${nextNum}: "${nextName}"?`;
     if (!confirm(msg)) return;
     this.setChapter(g, nextCode);
   }
@@ -310,7 +572,6 @@ export class ClassProgressComponent implements OnInit {
     const previous = g.curCode;
     this.toast.set('');
     this.patch(g.key, { curCode: code, saving: true, saved: false });
-    // Progress path uses the Firestore doc id (docId), not the catalog classId.
     const res = await this.progress.setCurrentChapter(g.docId, g.centerId, code);
     if (!res.ok) {
       this.patch(g.key, { curCode: previous });
