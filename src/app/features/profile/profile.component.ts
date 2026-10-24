@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminAuthService } from '../../core/services/auth/admin-auth.service';
@@ -46,11 +46,31 @@ import { UserModel } from '../../models/user/user.model';
             </div>
             <div class="avatar-meta">
               <div class="avatar-name">{{ form.name || '—' }}</div>
-              <div class="avatar-role">{{ auth.userProfile()?.role }}</div>
+              <div class="avatar-role badge-role">{{ auth.userProfile()?.role }}</div>
             </div>
           </div>
           <p class="avatar-hint">Click the avatar to upload a new photo (JPG, PNG, WebP · max 20 MB)</p>
           <div class="error-msg" *ngIf="avatarError()">{{ avatarError() }}</div>
+
+          <!-- Account info (read-only) -->
+          <div class="account-info">
+            <div class="info-row" *ngIf="canEdit()">
+              <sc-icon name="shield-check" [size]="13"></sc-icon>
+              <span>Content editor</span>
+            </div>
+            <div class="info-row" *ngIf="rating() != null">
+              <sc-icon name="star" [size]="13"></sc-icon>
+              <span>Rating: {{ rating() | number:'1.1-1' }}</span>
+            </div>
+            <div class="info-row" *ngIf="centerCount() > 0">
+              <sc-icon name="building" [size]="13"></sc-icon>
+              <span>{{ centerCount() }} tuition {{ centerCount() === 1 ? 'centre' : 'centres' }}</span>
+            </div>
+            <div class="info-row" *ngIf="classCount() > 0">
+              <sc-icon name="book-open" [size]="13"></sc-icon>
+              <span>{{ classCount() }} enrolled {{ classCount() === 1 ? 'class' : 'classes' }}</span>
+            </div>
+          </div>
         </div>
 
         <!-- Details card -->
@@ -61,7 +81,8 @@ import { UserModel } from '../../models/user/user.model';
 
             <div class="field-group">
               <label class="field-label">Full name</label>
-              <input class="input" type="text" [(ngModel)]="form.name" placeholder="Your full name" />
+              <input class="input" type="text" [(ngModel)]="form.name" placeholder="Your full name"
+                     (ngModelChange)="onFormChange()" />
             </div>
 
             <div class="field-group">
@@ -72,7 +93,8 @@ import { UserModel } from '../../models/user/user.model';
 
             <div class="field-group">
               <label class="field-label">Phone</label>
-              <input class="input" type="tel" [(ngModel)]="form.phone" placeholder="+91 98765 43210" />
+              <input class="input" type="tel" [(ngModel)]="form.phone" placeholder="+91 98765 43210"
+                     (ngModelChange)="onFormChange()" />
             </div>
 
             <div class="field-group">
@@ -80,7 +102,7 @@ import { UserModel } from '../../models/user/user.model';
               <div class="input-icon-wrap">
                 <sc-icon name="currency-rupee" [size]="15" class="input-icon"></sc-icon>
                 <input class="input with-icon" type="text" [(ngModel)]="form.upiId"
-                       placeholder="yourname@upi" />
+                       placeholder="yourname@upi" (ngModelChange)="onFormChange()" />
               </div>
               <span class="field-hint">Used for payment transfers and fee collection</span>
             </div>
@@ -88,17 +110,33 @@ import { UserModel } from '../../models/user/user.model';
             <div class="field-group full-width">
               <label class="field-label">Bio</label>
               <textarea class="input textarea" [(ngModel)]="form.bio" rows="4"
-                        placeholder="Tell students a bit about yourself…"></textarea>
+                        placeholder="Tell students a bit about yourself…"
+                        (ngModelChange)="onFormChange()"></textarea>
             </div>
 
           </div>
 
+          <!-- Tuition centres (read-only display) -->
+          <ng-container *ngIf="tuitionCenterIds().length > 0">
+            <h2 class="section-heading" style="margin-top: 24px;">Assigned tuition centres</h2>
+            <div class="centre-chips">
+              <span class="chip" *ngFor="let id of tuitionCenterIds()">{{ id }}</span>
+            </div>
+          </ng-container>
+
           <div class="form-footer">
+            <div class="unsaved-indicator" *ngIf="isDirty()">
+              <sc-icon name="circle" [size]="8"></sc-icon>
+              Unsaved changes
+            </div>
             <div class="save-feedback" *ngIf="saveMsg()">
               <sc-icon [name]="saveOk() ? 'check' : 'x'" [size]="14"></sc-icon>
               {{ saveMsg() }}
             </div>
-            <button class="btn btn-primary" (click)="save()" [disabled]="saving()">
+            <button class="btn btn-secondary" (click)="reset()" *ngIf="isDirty() && !saving()">
+              Discard
+            </button>
+            <button class="btn btn-primary" (click)="save()" [disabled]="saving() || !isDirty()">
               <sc-icon name="check" [size]="15" [stroke]="2.5" *ngIf="!saving()"></sc-icon>
               <span *ngIf="saving()">Saving…</span>
               <span *ngIf="!saving()">Save changes</span>
@@ -211,11 +249,17 @@ import { UserModel } from '../../models/user/user.model';
       color: var(--text-primary);
     }
 
-    .avatar-role {
-      font-size: 12px;
-      color: var(--text-muted);
+    .badge-role {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--brand);
+      background: rgba(96, 165, 250, 0.12);
+      border-radius: 20px;
+      padding: 2px 10px;
       text-transform: capitalize;
-      margin-top: 2px;
+      margin-top: 4px;
+      letter-spacing: 0.02em;
     }
 
     .avatar-hint {
@@ -226,13 +270,30 @@ import { UserModel } from '../../models/user/user.model';
       line-height: 1.5;
     }
 
+    /* Account info chips in avatar card */
+    .account-info {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-top: 4px;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .info-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
     /* Details card */
     .details-card {
       padding: 24px 24px;
     }
 
     .section-heading {
-      margin: 0 0 20px;
+      margin: 0 0 16px;
       font-size: 14px;
       font-weight: 600;
       color: var(--text-primary);
@@ -297,6 +358,24 @@ import { UserModel } from '../../models/user/user.model';
 
     .input.with-icon { padding-left: 30px; }
 
+    /* Centre chips */
+    .centre-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .chip {
+      font-size: 12px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: var(--surface-secondary);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      font-family: monospace;
+    }
+
     .form-footer {
       display: flex;
       align-items: center;
@@ -307,6 +386,15 @@ import { UserModel } from '../../models/user/user.model';
       border-top: 1px solid var(--border-subtle);
     }
 
+    .unsaved-indicator {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      color: var(--warning, #f59e0b);
+      margin-right: auto;
+    }
+
     .save-feedback {
       display: flex;
       align-items: center;
@@ -314,6 +402,20 @@ import { UserModel } from '../../models/user/user.model';
       font-size: 13px;
       color: var(--text-muted);
     }
+
+    .btn-secondary {
+      background: var(--surface-secondary);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      padding: 8px 16px;
+      border-radius: var(--r-md);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-secondary:hover { background: var(--surface-tertiary, var(--surface-secondary)); }
 
     .error-msg {
       font-size: 12px;
@@ -334,8 +436,23 @@ export class ProfileComponent implements OnInit {
   saving = signal(false);
   saveMsg = signal<string | null>(null);
   saveOk = signal(true);
+  isDirty = signal(false);
+
+  // Read-only account fields
+  tuitionCenterIds = computed(() => this.auth.userProfile()?.tuitionCenterIds ?? []);
+  centerCount = computed(() => this.tuitionCenterIds().length);
+  classCount = computed(() => this.auth.userProfile()?.enrolledClassIds?.length ?? 0);
+  canEdit = computed(() => this.auth.userProfile()?.canEditContent ?? false);
+  rating = computed(() => this.auth.userProfile()?.rating ?? null);
 
   form = {
+    name: '',
+    phone: '',
+    upiId: '',
+    bio: '',
+  };
+
+  private saved = {
     name: '',
     phone: '',
     upiId: '',
@@ -355,7 +472,25 @@ export class ProfileComponent implements OnInit {
       this.form.upiId = p.upiId ?? '';
       this.form.bio   = p.bio ?? '';
       this.photoUrl.set(p.photoUrl ?? null);
+      this.syncSaved();
     }
+  }
+
+  onFormChange() {
+    this.isDirty.set(
+      this.form.name.trim()  !== this.saved.name  ||
+      this.form.phone.trim() !== this.saved.phone ||
+      this.form.upiId.trim() !== this.saved.upiId ||
+      this.form.bio.trim()   !== this.saved.bio,
+    );
+  }
+
+  reset() {
+    this.form.name  = this.saved.name;
+    this.form.phone = this.saved.phone;
+    this.form.upiId = this.saved.upiId;
+    this.form.bio   = this.saved.bio;
+    this.isDirty.set(false);
   }
 
   async onAvatarPick(event: Event) {
@@ -382,7 +517,7 @@ export class ProfileComponent implements OnInit {
 
   async save() {
     const uid = this.auth.uid;
-    if (!uid) return;
+    if (!uid || !this.isDirty()) return;
     this.saving.set(true);
     this.saveMsg.set(null);
 
@@ -398,6 +533,8 @@ export class ProfileComponent implements OnInit {
 
     if (res.ok) {
       this.auth.userProfile.update(p => p ? { ...p, ...patch } : p);
+      this.syncSaved();
+      this.isDirty.set(false);
       this.saveOk.set(true);
       this.saveMsg.set('Changes saved');
     } else {
@@ -406,5 +543,12 @@ export class ProfileComponent implements OnInit {
     }
 
     setTimeout(() => this.saveMsg.set(null), 3000);
+  }
+
+  private syncSaved() {
+    this.saved.name  = this.form.name.trim();
+    this.saved.phone = this.form.phone.trim();
+    this.saved.upiId = this.form.upiId.trim();
+    this.saved.bio   = this.form.bio.trim();
   }
 }
