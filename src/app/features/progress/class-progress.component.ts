@@ -193,10 +193,17 @@ interface ProgressCard {
     /* Class picker cards */
     .cards-row {
       display: flex;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       gap: 12px;
       margin-bottom: 4px;
+      overflow-x: auto;
+      padding-bottom: 6px;
+      scrollbar-width: thin;
+      scrollbar-color: #cbd5e1 transparent;
     }
+
+    .cards-row::-webkit-scrollbar { height: 4px; }
+    .cards-row::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
 
     .class-card {
       display: flex;
@@ -209,9 +216,11 @@ interface ProgressCard {
       cursor: pointer;
       text-align: left;
       transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
-      min-width: 200px;
-      max-width: 280px;
-      flex: 1;
+      width: 220px;
+      min-width: 220px;
+      flex-shrink: 0;
+      height: 72px;
+      box-sizing: border-box;
     }
 
     .class-card:hover {
@@ -232,8 +241,11 @@ interface ProgressCard {
       font-size: 10px; font-weight: 700; color: #15803d;
     }
 
-    .class-card-info { flex: 1; min-width: 0; }
-    .class-card-name { font-size: 14px; font-weight: 700; color: #1e293b; line-height: 1.3; }
+    .class-card-info { flex: 1; min-width: 0; overflow: hidden; }
+    .class-card-name {
+      font-size: 13px; font-weight: 700; color: #1e293b; line-height: 1.3;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
     .class-card-status { font-size: 12px; color: #64748b; margin-top: 2px; }
     .warn-text { color: #f59e0b; }
 
