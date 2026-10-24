@@ -111,14 +111,14 @@ interface ProgressCard {
                   <!-- Not started -->
                   <button class="btn-start" *ngIf="currentIdx(g) < 0"
                           [disabled]="!canEdit() || g.saving"
-                          (click)="setChapter(g, g.chapters[0].code)">
+                          (click)="confirmAndSetNext(g, g.chapters[0].code, g.chapters[0].name, 1)">
                     {{ g.saving ? 'Saving…' : '▶ Start teaching this class' }}
                   </button>
 
                   <!-- Move to next chapter -->
                   <button class="btn-next" *ngIf="currentIdx(g) >= 0 && currentIdx(g) < g.chapters.length - 1"
                           [disabled]="!canEdit() || g.saving"
-                          (click)="setChapter(g, g.chapters[currentIdx(g) + 1].code)">
+                          (click)="confirmAndSetNext(g, g.chapters[currentIdx(g) + 1].code, g.chapters[currentIdx(g) + 1].name, currentIdx(g) + 2)">
                     <span *ngIf="!g.saving">
                       ✓ Done with this chapter<br>
                       <small>Next: Chapter {{ currentIdx(g) + 2 }} — {{ g.chapters[currentIdx(g) + 1].name }}</small>
@@ -303,8 +303,35 @@ export class ClassProgressComponent implements OnInit {
   pick(g: ProgressCard, i: number) {
     const target = g.chapters[i];
     if (target.code === g.curCode) return;
-    if (i < this.currentIdx(g) && !confirm(`Move back to "${target.name}"? Later chapters will show as not done.`)) return;
+    const cur = this.currentIdx(g);
+
+    // 2+ chapters back → only admin can do this
+    if (i < cur - 1) {
+      alert(`You can only go back one chapter at a time.\nTo set an earlier chapter, please ask your admin.`);
+      return;
+    }
+
+    // 1 chapter back → allowed with confirmation
+    if (i === cur - 1) {
+      if (!confirm(`Go back to Chapter ${i + 1}: "${target.name}"?\nThe current chapter will be marked as not done.`)) return;
+      this.setChapter(g, target.code);
+      return;
+    }
+
+    // Forward (skipping chapters) → confirm
+    const label = cur < 0 ? `Start with Chapter ${i + 1}: "${target.name}"?` : `Jump to Chapter ${i + 1}: "${target.name}"?\nChapters in between will be marked as done.`;
+    if (!confirm(label)) return;
     this.setChapter(g, target.code);
+  }
+
+  confirmAndSetNext(g: ProgressCard, nextCode: string, nextName: string, nextNum: number) {
+    const cur = this.currentIdx(g);
+    const curName = cur >= 0 ? g.chapters[cur].name : '(not started)';
+    const msg = cur < 0
+      ? `Start teaching Chapter 1: "${nextName}"?`
+      : `Mark Chapter ${cur + 1}: "${curName}" as done\nand start Chapter ${nextNum}: "${nextName}"?`;
+    if (!confirm(msg)) return;
+    this.setChapter(g, nextCode);
   }
 
   async setChapter(g: ProgressCard, code: string) {
