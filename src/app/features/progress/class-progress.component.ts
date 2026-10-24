@@ -47,7 +47,8 @@ interface ProgressCard {
       <ng-container *ngIf="!loading() && cards().length">
         <ng-container *ngFor="let group of cardsByCenter()">
           <div class="center-label">🏫 {{ group.centerName }}</div>
-          <div class="cards-row">
+          <div class="cards-scroll-wrap">
+            <div class="cards-row" #row>
             <button
               class="class-card"
               *ngFor="let g of group.cards"
@@ -77,6 +78,8 @@ interface ProgressCard {
 
               <div class="class-card-arrow">›</div>
             </button>
+            </div>
+            <button class="scroll-btn" (click)="scrollRow(row)">›</button>
           </div>
         </ng-container>
 
@@ -191,19 +194,48 @@ interface ProgressCard {
     }
 
     /* Class picker cards */
+    .cards-scroll-wrap {
+      position: relative;
+      display: flex;
+      align-items: stretch;
+      margin-bottom: 4px;
+    }
+
     .cards-row {
       display: flex;
       flex-wrap: nowrap;
       gap: 12px;
-      margin-bottom: 4px;
       overflow-x: auto;
-      padding-bottom: 6px;
-      scrollbar-width: thin;
-      scrollbar-color: #cbd5e1 transparent;
+      scroll-behavior: smooth;
+      scrollbar-width: none;
+      flex: 1;
+      min-width: 0;
     }
 
-    .cards-row::-webkit-scrollbar { height: 4px; }
-    .cards-row::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+    .cards-row::-webkit-scrollbar { display: none; }
+
+    .scroll-btn {
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 56px;
+      border: none;
+      background: linear-gradient(to right, transparent, rgba(255,255,255,0.85) 40%, rgba(255,255,255,0.95));
+      color: #475569;
+      font-size: 28px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 6px;
+      border-radius: 0 14px 14px 0;
+      transition: color 0.15s;
+      z-index: 1;
+    }
+
+    .scroll-btn:hover { color: #1e293b; }
 
     .class-card {
       display: flex;
@@ -533,6 +565,10 @@ export class ClassProgressComponent implements OnInit {
 
   selectCard(g: ProgressCard | null) {
     this.selectedKey.set(g ? g.key : null);
+  }
+
+  scrollRow(el: HTMLElement) {
+    el.scrollBy({ left: 240, behavior: 'smooth' });
   }
 
   currentIdx(g: ProgressCard): number {
