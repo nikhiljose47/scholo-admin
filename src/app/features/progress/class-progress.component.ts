@@ -32,15 +32,12 @@ interface ProgressCard {
     <div class="page">
       <header class="page-header">
         <h1>Class Progress</h1>
-        <p>Mark which chapter your class is currently on. Updates are saved instantly.</p>
+        <p>After finishing a chapter in class, press the green button to move to the next one.</p>
       </header>
 
-      <!-- Permission notice -->
       <div class="notice warn" *ngIf="!canEdit()">
         🔒 You can view progress but cannot update it. Ask an admin to enable the "can edit content" permission for your account.
       </div>
-
-      <!-- Error toast -->
       <div class="notice error" *ngIf="toast() as t">⚠ {{ t }}</div>
 
       <div *ngIf="loading()" class="loading">Loading your classes…</div>
@@ -50,110 +47,83 @@ interface ProgressCard {
         <p>{{ emptyMessage() }}</p>
       </div>
 
-      <ng-container *ngIf="!loading() && cards().length">
+      <!-- One section per tuition center -->
+      <ng-container *ngFor="let group of cardsByCenter()">
+        <section class="center-section">
+          <h2 class="center-heading">🏫 {{ group.centerName }}</h2>
+          <div class="grid">
+            <article class="card" *ngFor="let g of group.cards">
 
-        <!-- Step 1: Pick a center (only shown when there are multiple) -->
-        <section class="step-section" *ngIf="centers().length > 1">
-          <div class="step-label">Step 1 — Select your tuition center</div>
-          <select class="center-select" [ngModel]="centerFilter()" (ngModelChange)="centerFilter.set($event)">
-            <option value="">All centers</option>
-            <option *ngFor="let c of centers()" [value]="c">🏫 {{ c }}</option>
-          </select>
-        </section>
-
-        <!-- Step 2: Update each class -->
-        <section class="step-section">
-          <div class="step-label">{{ centers().length > 1 ? 'Step 2 — ' : '' }}Update the current chapter for each class</div>
-          <p class="step-hint">After finishing a chapter in class, press the green button to move to the next one.</p>
-        </section>
-
-        <div class="grid">
-          <article class="card" *ngFor="let g of visibleCards()">
-
-            <!-- Card header -->
-            <div class="card-top">
-              <div class="card-meta">
-                <span class="center-badge">🏫 {{ g.centerName }}</span>
-                <h2>{{ g.className }}</h2>
-              </div>
-              <div class="progress-ring">
-                <svg viewBox="0 0 40 40" width="48" height="48">
-                  <circle cx="20" cy="20" r="16" fill="none" stroke="#e2e8f0" stroke-width="4"/>
-                  <circle cx="20" cy="20" r="16" fill="none" stroke="#22c55e" stroke-width="4"
-                    [attr.stroke-dasharray]="circumference"
-                    [attr.stroke-dashoffset]="circumference - (pct(g) / 100) * circumference"
-                    stroke-linecap="round" transform="rotate(-90 20 20)"/>
-                </svg>
-                <span class="ring-pct">{{ pct(g) }}%</span>
-              </div>
-            </div>
-
-            <ng-container *ngIf="g.chapters.length; else noSyllabus">
-
-              <!-- Progress bar -->
-              <div class="bar"><div class="fill" [style.width.%]="pct(g)"></div></div>
-              <div class="bar-label">{{ doneCount(g) }} of {{ g.chapters.length }} chapters completed</div>
-
-              <!-- Current chapter box -->
-              <div class="current-box">
-                <div class="current-label">
-                  {{ currentIdx(g) >= 0 ? 'Currently teaching — Chapter ' + (currentIdx(g) + 1) + ' of ' + g.chapters.length : 'Not started yet' }}
+              <div class="card-top">
+                <h3>{{ g.className }}</h3>
+                <div class="progress-ring">
+                  <svg viewBox="0 0 40 40" width="48" height="48">
+                    <circle cx="20" cy="20" r="16" fill="none" stroke="#e2e8f0" stroke-width="4"/>
+                    <circle cx="20" cy="20" r="16" fill="none" stroke="#22c55e" stroke-width="4"
+                      [attr.stroke-dasharray]="circumference"
+                      [attr.stroke-dashoffset]="circumference - (pct(g) / 100) * circumference"
+                      stroke-linecap="round" transform="rotate(-90 20 20)"/>
+                  </svg>
+                  <span class="ring-pct">{{ pct(g) }}%</span>
                 </div>
-                <div class="current-name">
-                  {{ currentIdx(g) >= 0 ? g.chapters[currentIdx(g)].name : g.chapters[0].name }}
-                </div>
+              </div>
 
-                <!-- Saved confirmation -->
-                <div class="saved-msg" *ngIf="g.saved">✅ Saved!</div>
+              <ng-container *ngIf="g.chapters.length; else noSyllabus">
+                <div class="bar"><div class="fill" [style.width.%]="pct(g)"></div></div>
+                <div class="bar-label">{{ doneCount(g) }} of {{ g.chapters.length }} chapters completed</div>
 
-                <!-- Action buttons -->
-                <div class="actions" *ngIf="!g.saved">
-                  <!-- Not started -->
-                  <button class="btn-start" *ngIf="currentIdx(g) < 0"
-                          [disabled]="!canEdit() || g.saving"
-                          (click)="confirmAndSetNext(g, g.chapters[0].code, g.chapters[0].name, 1)">
-                    {{ g.saving ? 'Saving…' : '▶ Start teaching this class' }}
-                  </button>
+                <div class="current-box">
+                  <div class="current-label">
+                    {{ currentIdx(g) >= 0 ? 'Currently teaching — Chapter ' + (currentIdx(g) + 1) + ' of ' + g.chapters.length : 'Not started yet' }}
+                  </div>
+                  <div class="current-name">
+                    {{ currentIdx(g) >= 0 ? g.chapters[currentIdx(g)].name : g.chapters[0].name }}
+                  </div>
 
-                  <!-- Move to next chapter -->
-                  <button class="btn-next" *ngIf="currentIdx(g) >= 0 && currentIdx(g) < g.chapters.length - 1"
-                          [disabled]="!canEdit() || g.saving"
-                          (click)="confirmAndSetNext(g, g.chapters[currentIdx(g) + 1].code, g.chapters[currentIdx(g) + 1].name, currentIdx(g) + 2)">
-                    <span *ngIf="!g.saving">
-                      ✓ Done with this chapter<br>
-                      <small>Next: Chapter {{ currentIdx(g) + 2 }} — {{ g.chapters[currentIdx(g) + 1].name }}</small>
-                    </span>
-                    <span *ngIf="g.saving">Saving…</span>
-                  </button>
+                  <div class="saved-msg" *ngIf="g.saved">✅ Saved!</div>
 
-                  <!-- Final chapter -->
-                  <div class="final-badge" *ngIf="currentIdx(g) === g.chapters.length - 1">
-                    🏁 All chapters completed!
+                  <div class="actions" *ngIf="!g.saved">
+                    <button class="btn-start" *ngIf="currentIdx(g) < 0"
+                            [disabled]="!canEdit() || g.saving"
+                            (click)="confirmAndSetNext(g, g.chapters[0].code, g.chapters[0].name, 1)">
+                      {{ g.saving ? 'Saving…' : '▶ Start teaching this class' }}
+                    </button>
+                    <button class="btn-next" *ngIf="currentIdx(g) >= 0 && currentIdx(g) < g.chapters.length - 1"
+                            [disabled]="!canEdit() || g.saving"
+                            (click)="confirmAndSetNext(g, g.chapters[currentIdx(g) + 1].code, g.chapters[currentIdx(g) + 1].name, currentIdx(g) + 2)">
+                      <span *ngIf="!g.saving">
+                        ✓ Done with this chapter<br>
+                        <small>Next: Chapter {{ currentIdx(g) + 2 }} — {{ g.chapters[currentIdx(g) + 1].name }}</small>
+                      </span>
+                      <span *ngIf="g.saving">Saving…</span>
+                    </button>
+                    <div class="final-badge" *ngIf="currentIdx(g) === g.chapters.length - 1">
+                      🏁 All chapters completed!
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <!-- Chapter list (collapsed by default) -->
-              <button class="toggle-link" (click)="toggle(g)">
-                {{ g.open ? '▲ Hide chapter list' : '▼ Show all ' + g.chapters.length + ' chapters' }}
-              </button>
-              <ol class="chapter-list" *ngIf="g.open">
-                <li *ngFor="let ch of g.chapters; let i = index"
-                    [class]="status(g, i)"
-                    (click)="canEdit() && !g.saving && pick(g, i)"
-                    [class.clickable]="canEdit()">
-                  <span class="dot">{{ status(g, i) === 'done' ? '✓' : i + 1 }}</span>
-                  <span class="ch-name">{{ ch.name }}</span>
-                  <span class="tag" *ngIf="status(g, i) === 'current'">current</span>
-                </li>
-              </ol>
+                <button class="toggle-link" (click)="toggle(g)">
+                  {{ g.open ? '▲ Hide chapter list' : '▼ Show all ' + g.chapters.length + ' chapters' }}
+                </button>
+                <ol class="chapter-list" *ngIf="g.open">
+                  <li *ngFor="let ch of g.chapters; let i = index"
+                      [class]="status(g, i)"
+                      (click)="canEdit() && !g.saving && pick(g, i)"
+                      [class.clickable]="canEdit()">
+                    <span class="dot">{{ status(g, i) === 'done' ? '✓' : i + 1 }}</span>
+                    <span class="ch-name">{{ ch.name }}</span>
+                    <span class="tag" *ngIf="status(g, i) === 'current'">current</span>
+                  </li>
+                </ol>
+              </ng-container>
 
-            </ng-container>
-            <ng-template #noSyllabus>
-              <p class="no-syllabus">No syllabus linked to this class yet. An admin can fix this on the Classes page.</p>
-            </ng-template>
-          </article>
-        </div>
+              <ng-template #noSyllabus>
+                <p class="no-syllabus">No syllabus linked yet. An admin can fix this on the Classes page.</p>
+              </ng-template>
+            </article>
+          </div>
+        </section>
       </ng-container>
     </div>
   `,
@@ -172,19 +142,14 @@ interface ProgressCard {
     .empty span { font-size: 48px; display: block; margin-bottom: 10px; }
     .empty p { font-size: 15px; }
 
-    .step-section { margin-bottom: 20px; }
-    .step-label { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #7c3aed; margin-bottom: 8px; }
-    .step-hint { margin: 0; font-size: 14px; color: #64748b; }
-    .center-select { width: 100%; max-width: 360px; padding: 10px 14px; border: 2px solid #c4b5fd; border-radius: 10px; font-size: 15px; color: #1e293b; background: #fff; cursor: pointer; }
-    .center-select:focus { outline: none; border-color: #7c3aed; }
+    .center-section { margin-bottom: 36px; }
+    .center-heading { margin: 0 0 14px; font-size: 17px; font-weight: 700; color: #7c3aed; display: flex; align-items: center; gap: 6px; }
 
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 18px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
 
     .card { background: #fff; border-radius: 14px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,.07); }
     .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
-    .card-meta { flex: 1; }
-    .center-badge { font-size: 12px; font-weight: 700; color: #7c3aed; display: block; margin-bottom: 4px; }
-    h2 { margin: 0; font-size: 18px; font-weight: 700; color: #1e293b; line-height: 1.3; }
+    h3 { margin: 0; font-size: 18px; font-weight: 700; color: #1e293b; line-height: 1.3; flex: 1; }
 
     .progress-ring { position: relative; width: 48px; height: 48px; flex-shrink: 0; }
     .ring-pct { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #15803d; }
@@ -233,12 +198,19 @@ export class ClassProgressComponent implements OnInit {
   loading = signal(true);
   cards = signal<ProgressCard[]>([]);
   toast = signal('');
-  centerFilter = signal('');
 
-  centers = computed(() => [...new Set(this.cards().map(c => c.centerName))].sort());
-  visibleCards = computed(() =>
-    this.cards().filter(c => !this.centerFilter() || c.centerName === this.centerFilter()),
-  );
+  /** Cards grouped by center, in alphabetical center order. */
+  cardsByCenter = computed(() => {
+    const map = new Map<string, ProgressCard[]>();
+    for (const c of this.cards()) {
+      const list = map.get(c.centerName) ?? [];
+      list.push(c);
+      map.set(c.centerName, list);
+    }
+    return [...map.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([centerName, cards]) => ({ centerName, cards }));
+  });
 
   canEdit = computed(() => this.auth.isAdmin() || this.auth.userProfile()?.canEditContent === true);
 
