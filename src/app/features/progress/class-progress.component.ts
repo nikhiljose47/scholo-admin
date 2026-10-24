@@ -80,8 +80,8 @@ interface ProgressCard {
                 <svg viewBox="0 0 40 40" width="48" height="48">
                   <circle cx="20" cy="20" r="16" fill="none" stroke="#e2e8f0" stroke-width="4"/>
                   <circle cx="20" cy="20" r="16" fill="none" stroke="#22c55e" stroke-width="4"
-                    stroke-dasharray="{{ circumference }}"
-                    stroke-dashoffset="{{ circumference - (pct(g) / 100) * circumference }}"
+                    [attr.stroke-dasharray]="circumference"
+                    [attr.stroke-dashoffset]="circumference - (pct(g) / 100) * circumference"
                     stroke-linecap="round" transform="rotate(-90 20 20)"/>
                 </svg>
                 <span class="ring-pct">{{ pct(g) }}%</span>
