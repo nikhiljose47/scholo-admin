@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { CentersService } from '../centers/centers.service';
@@ -93,6 +93,30 @@ interface QuickAction {
               </div>
               <sc-icon name="chevron-right" [size]="16" [stroke]="2" class="action-arrow"></sc-icon>
             </a>
+          </div>
+        </section>
+
+        <!-- Salary reminder (teachers only) -->
+        <section class="card section-card salary-card" *ngIf="!auth.isAdmin()">
+          <div class="salary-header">
+            <sc-icon name="currency-rupee" [size]="14"></sc-icon>
+            <span>Salary</span>
+          </div>
+          <div class="salary-due">
+            <span class="salary-date">29 {{ salaryInfo().month }}</span>
+            <span class="salary-badge"
+              [class.sal-ok]="salaryInfo().daysLeft > 7"
+              [class.sal-warn]="salaryInfo().daysLeft > 0 && salaryInfo().daysLeft <= 7"
+              [class.sal-today]="salaryInfo().daysLeft === 0">
+              {{ salaryInfo().daysLeft === 0 ? 'Due today' : salaryInfo().daysLeft + 'd left' }}
+            </span>
+          </div>
+          <div class="salary-upi" *ngIf="salaryInfo().upiId">
+            <sc-icon name="at-symbol" [size]="12"></sc-icon>
+            <span>{{ salaryInfo().upiId }}</span>
+          </div>
+          <div class="salary-upi salary-upi-empty" *ngIf="!salaryInfo().upiId">
+            No UPI ID set — add it in your profile
           </div>
         </section>
 
@@ -286,6 +310,67 @@ interface QuickAction {
       background: var(--brand-subtle);
       color: var(--brand-text);
     }
+
+    /* Salary card */
+    .salary-card { display: flex; flex-direction: column; gap: 12px; }
+
+    .salary-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+
+    .salary-due {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .salary-date {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+    }
+
+    .salary-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+
+    .sal-ok    { background: #dcfce7; color: #15803d; }
+    .sal-warn  { background: #fef9c3; color: #a16207; }
+    .sal-today { background: #fee2e2; color: #b91c1c; }
+
+    @media (prefers-color-scheme: dark) {
+      .sal-ok    { background: rgba(22,163,74,.18);  color: #4ade80; }
+      .sal-warn  { background: rgba(234,179,8,.18);  color: #facc15; }
+      .sal-today { background: rgba(239,68,68,.18);  color: #f87171; }
+    }
+
+    .salary-upi {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-family: monospace;
+      word-break: break-all;
+    }
+
+    .salary-upi-empty {
+      font-family: inherit;
+      font-size: 12px;
+      color: var(--text-placeholder);
+      font-style: italic;
+    }
   `],
 })
 export class DashboardComponent implements OnInit {
@@ -295,6 +380,20 @@ export class DashboardComponent implements OnInit {
   private directory = inject(UsersDirectoryService);
 
   metrics = signal<MetricCard[]>([]);
+
+  salaryInfo = computed(() => {
+    const now = new Date();
+    const day = now.getDate();
+    const due = day <= 29
+      ? new Date(now.getFullYear(), now.getMonth(), 29)
+      : new Date(now.getFullYear(), now.getMonth() + 1, 29);
+    const msLeft = due.setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0);
+    return {
+      daysLeft: Math.max(0, Math.round(msLeft / 86_400_000)),
+      month: due.toLocaleString('default', { month: 'long' }),
+      upiId: this.auth.userProfile()?.upiId ?? null,
+    };
+  });
 
   adminActions: QuickAction[] = [
     { label: 'Add Center',          description: 'Register a new tuition center',  icon: 'buildings',  path: '/centers/new' },

@@ -73,30 +73,6 @@ import { UserModel } from '../../models/user/user.model';
           </div>
         </div>
 
-        <!-- Payment reminder card -->
-        <div class="card payment-card">
-          <div class="pay-header">
-            <sc-icon name="currency-rupee" [size]="15"></sc-icon>
-            <span>Payment</span>
-          </div>
-          <div class="pay-due">
-            <span class="pay-date">29 {{ paymentInfo().month }}</span>
-            <span class="pay-badge"
-              [class.pay-ok]="paymentInfo().daysLeft > 7"
-              [class.pay-warn]="paymentInfo().daysLeft > 0 && paymentInfo().daysLeft <= 7"
-              [class.pay-due-today]="paymentInfo().daysLeft === 0">
-              {{ paymentInfo().daysLeft === 0 ? 'Due today' : paymentInfo().daysLeft + ' days left' }}
-            </span>
-          </div>
-          <div class="pay-upi" *ngIf="paymentInfo().upiId">
-            <sc-icon name="at-symbol" [size]="12"></sc-icon>
-            <span>{{ paymentInfo().upiId }}</span>
-          </div>
-          <div class="pay-upi pay-upi-empty" *ngIf="!paymentInfo().upiId">
-            No UPI ID set
-          </div>
-        </div>
-
         <!-- Details card -->
         <div class="card details-card">
           <h2 class="section-heading">Personal details</h2>
@@ -447,71 +423,6 @@ import { UserModel } from '../../models/user/user.model';
       text-align: center;
     }
 
-    /* Payment reminder card */
-    .payment-card {
-      grid-column: 1;
-      padding: 16px 18px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .pay-header {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-    }
-
-    .pay-due {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-    }
-
-    .pay-date {
-      font-size: 18px;
-      font-weight: 700;
-      color: var(--text-primary);
-    }
-
-    .pay-badge {
-      font-size: 11px;
-      font-weight: 600;
-      padding: 3px 9px;
-      border-radius: 20px;
-    }
-
-    .pay-ok   { background: #dcfce7; color: #15803d; }
-    .pay-warn { background: #fef9c3; color: #a16207; }
-    .pay-due-today { background: #fee2e2; color: #b91c1c; }
-
-    @media (prefers-color-scheme: dark) {
-      .pay-ok   { background: rgba(22,163,74,.18);  color: #4ade80; }
-      .pay-warn { background: rgba(234,179,8,.18);  color: #facc15; }
-      .pay-due-today { background: rgba(239,68,68,.18); color: #f87171; }
-    }
-
-    .pay-upi {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 12px;
-      color: var(--text-secondary);
-      font-family: monospace;
-      word-break: break-all;
-    }
-
-    .pay-upi-empty {
-      font-family: inherit;
-      color: var(--text-placeholder);
-      font-style: italic;
-    }
   `],
 })
 export class ProfileComponent implements OnInit {
@@ -535,21 +446,6 @@ export class ProfileComponent implements OnInit {
   canEdit = computed(() => this.auth.userProfile()?.canEditContent ?? false);
   rating = computed(() => this.auth.userProfile()?.rating ?? null);
 
-  paymentInfo = computed(() => {
-    const now = new Date();
-    const day = now.getDate();
-    let due: Date;
-    if (day <= 29) {
-      due = new Date(now.getFullYear(), now.getMonth(), 29);
-    } else {
-      due = new Date(now.getFullYear(), now.getMonth() + 1, 29);
-    }
-    const msLeft = due.setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0);
-    const daysLeft = Math.max(0, Math.round(msLeft / 86_400_000));
-    const month = due.toLocaleString('default', { month: 'long' });
-    const upiId = this.auth.userProfile()?.upiId || this.form.upiId || null;
-    return { daysLeft, month, upiId };
-  });
 
   form = {
     name: '',
