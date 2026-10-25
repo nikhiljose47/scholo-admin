@@ -1,7 +1,5 @@
 import { inject, Injectable } from '@angular/core';
 import { orderBy, where, limit, Timestamp } from '@angular/fire/firestore';
-import { HttpClient } from '@angular/common/http';
-import { firstValueFrom } from 'rxjs';
 import { FirestoreService, FireResponse } from '../../core/services/fire/firestore.service';
 import { AdminAuthService } from '../../core/services/auth/admin-auth.service';
 import { CacheService } from '../../core/services/cache/cache.service';
@@ -29,10 +27,29 @@ export function toISTDateStr(ts: Timestamp): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** Format a Firestore Timestamp as IST time string 'HH:MM' */
+/** Format a Firestore Timestamp as IST time string 'HH:MM' (24-hour, for <input> values) */
 export function toISTTimeStr(ts: Timestamp): string {
   const d = new Date(ts.toMillis() + IST_OFFSET_MS);
   return d.toISOString().slice(11, 16);
+}
+
+const IST_WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const IST_MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** Format a Firestore Timestamp as a 12-hour IST time string, e.g. '2:30 PM' */
+export function toISTTime12Str(ts: Timestamp): string {
+  const d = new Date(ts.toMillis() + IST_OFFSET_MS);
+  const h24 = d.getUTCHours();
+  const m = d.getUTCMinutes();
+  const period = h24 >= 12 ? 'PM' : 'AM';
+  const h12 = h24 % 12 || 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${period}`;
+}
+
+/** Format a Firestore Timestamp as an IST date label with weekday, e.g. 'Tue, 28 Oct 2026' */
+export function toISTDateLabel(ts: Timestamp): string {
+  const d = new Date(ts.toMillis() + IST_OFFSET_MS);
+  return `${IST_WEEKDAY_SHORT[d.getUTCDay()]}, ${d.getUTCDate()} ${IST_MONTH_SHORT[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
 export interface ScheduleCounts {
@@ -58,20 +75,11 @@ export function istPeriods(nowMs = Date.now()) {
   };
 }
 
-export interface AttendanceResponse {
-  code: string;
-  totalUsers: number;
-  users: string[];
-}
-
 @Injectable({ providedIn: 'root' })
 export class ScheduleService {
   private fs = inject(FirestoreService);
   private auth = inject(AdminAuthService);
   private cache = inject(CacheService);
-  private http = inject(HttpClient);
-
-  private readonly workerBase = 'https://user-attendance.nikhiljose47.workers.dev';
 
   private windowStart(daysBack: number): Timestamp {
     return Timestamp.fromMillis(Date.now() - daysBack * 24 * 60 * 60 * 1000);
@@ -299,16 +307,5 @@ export class ScheduleService {
    *  immediately rather than waiting out the TTL. */
   private invalidateScheduleCache(): void {
     this.cache.invalidatePrefix('meetings:');
-  }
-
-  /** Fetch RSVP attendance from the Worker. classId is used as `code`. */
-  async getAttendance(classId: string): Promise<AttendanceResponse | null> {
-    try {
-      return await firstValueFrom(
-        this.http.get<AttendanceResponse>(`${this.workerBase}/users?code=${classId}&page=1&limit=200`),
-      );
-    } catch {
-      return null;
-    }
   }
 }

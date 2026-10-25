@@ -4,7 +4,7 @@ import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ScheduleService } from './schedule.service';
 import { Meeting, sessionState, SessionState } from '../../models/schedule/meeting.model';
-import { toISTDateStr, toISTTimeStr } from './schedule.service';
+import { toISTDateStr, toISTTime12Str, toISTDateLabel } from './schedule.service';
 import { AdminAuthService } from '../../core/services/auth/admin-auth.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 
@@ -101,8 +101,8 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
 
             <!-- Date/time -->
             <div class="row-datetime">
-              <div class="row-date">{{ istDate(m.date) }}</div>
-              <div class="row-time">{{ istTime(m.date) }} — {{ istTime(m.endAt) }}</div>
+              <div class="row-date">{{ istDateLabel(m.date) }}</div>
+              <div class="row-time">{{ ist12Time(m.date) }} — {{ ist12Time(m.endAt) }}</div>
             </div>
 
             <!-- Main content -->
@@ -178,7 +178,7 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
                 [title]="(m.className || m.classId) + ' · ' + (m.subjectName || m.subjectId)"
                 (click)="viewAttendance(m)"
               >
-                <div class="cal-time">{{ istTime(m.date) }}</div>
+                <div class="cal-time">{{ ist12Time(m.date) }}</div>
                 <div class="cal-name">{{ m.className || m.classId }}</div>
                 <div class="cal-teacher">{{ m.teacherName }}</div>
               </div>
@@ -192,7 +192,10 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
       <div *ngIf="attendanceModal()" class="modal-backdrop" (click)="attendanceModal.set(null)">
         <div class="modal" (click)="$event.stopPropagation()">
           <div class="modal-header">
-            <h3>Attendance — {{ attendanceModal()!.meeting.className || attendanceModal()!.meeting.classId }}</h3>
+            <div>
+              <h3>Attendance — {{ attendanceModal()!.meeting.className || attendanceModal()!.meeting.classId }}</h3>
+              <p class="modal-subtitle">{{ istDateLabel(attendanceModal()!.meeting.date) }} · {{ ist12Time(attendanceModal()!.meeting.date) }}</p>
+            </div>
             <button (click)="attendanceModal.set(null)" class="btn btn-ghost btn-sm icon-only">
               <sc-icon name="x" [size]="15" [stroke]="2"></sc-icon>
             </button>
@@ -488,6 +491,12 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
     }
 
     /* ── Attendance modal ── */
+    .modal-subtitle {
+      margin: 2px 0 0;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
     .att-count {
       font-size: 13px;
       font-weight: 600;
@@ -557,7 +566,8 @@ export class ScheduleListComponent implements OnInit {
 
   stateOf(m: Meeting): SessionState { return sessionState(m); }
   istDate(ts: import('@angular/fire/firestore').Timestamp) { return toISTDateStr(ts); }
-  istTime(ts: import('@angular/fire/firestore').Timestamp) { return toISTTimeStr(ts); }
+  istDateLabel(ts: import('@angular/fire/firestore').Timestamp) { return toISTDateLabel(ts); }
+  ist12Time(ts: import('@angular/fire/firestore').Timestamp) { return toISTTime12Str(ts); }
 
   countByState(s: SessionState) {
     return this.meetings().filter(m => this.stateOf(m) === s).length;
@@ -573,10 +583,12 @@ export class ScheduleListComponent implements OnInit {
     this.meetings.update(list => list.filter(x => x.id !== m.id));
   }
 
-  async viewAttendance(m: Meeting) {
-    this.attendanceModal.set({ meeting: m, loading: true, users: [] });
-    const res = await this.service.getAttendance(m.classId);
-    this.attendanceModal.set({ meeting: m, loading: false, users: res?.users ?? [] });
+  viewAttendance(m: Meeting) {
+    // Each meeting carries its own per-session attendance list (managed by the
+    // Worker RSVP flow directly on this document) — using it here instead of a
+    // classId-keyed lookup is what makes the count specific to *this* session
+    // rather than showing the same class-wide total for every scheduled session.
+    this.attendanceModal.set({ meeting: m, loading: false, users: m.attendance ?? [] });
   }
 
   mondayOf(date: Date): Date {

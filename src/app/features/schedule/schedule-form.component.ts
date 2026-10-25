@@ -465,9 +465,11 @@ export class ScheduleFormComponent implements OnInit {
     try {
       const [h, m] = timeStr.split(':').map(Number);
       const totalMin = h * 60 + m + (durationMinutes || 0);
-      const endH = Math.floor(totalMin / 60) % 24;
+      const endH24 = Math.floor(totalMin / 60) % 24;
       const endM = totalMin % 60;
-      return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+      const period = endH24 >= 12 ? 'PM' : 'AM';
+      const endH12 = endH24 % 12 || 12;
+      return `${endH12}:${String(endM).padStart(2, '0')} ${period}`;
     } catch { return null; }
   }
 

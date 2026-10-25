@@ -1,6 +1,6 @@
 import { Component, inject, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ScheduleService, ScheduleCounts, toISTDateStr } from '../schedule/schedule.service';
+import { ScheduleService, ScheduleCounts, toISTDateLabel } from '../schedule/schedule.service';
 import { AdminAuthService } from '../../core/services/auth/admin-auth.service';
 import { Meeting, sessionState } from '../../models/schedule/meeting.model';
 
@@ -167,6 +167,6 @@ export class AnalyticsComponent implements OnInit {
   }
 
   dateStr(m: Meeting): string {
-    return toISTDateStr(m.date);
+    return toISTDateLabel(m.date);
   }
 }
