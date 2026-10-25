@@ -19,6 +19,14 @@ const DURATION_OPTIONS = [30, 45, 60, 90, 120];
 const DEFAULT_CENTER_ID = 'scholo-basic';
 const DEFAULT_BATCH_ID = 'default';
 
+interface ConfirmPayload {
+  className: string;
+  chapter: string;
+  division: string | null;
+  time: string;
+  duration: number;
+}
+
 interface ImageItem {
   /** Existing image: download URL + storage slot. New image: the encoded blob only. */
   url?: string;
@@ -32,30 +40,58 @@ interface ImageItem {
   standalone: true,
   imports: [ReactiveFormsModule, CommonModule, RouterLink],
   template: `
+    <!-- Confirm modal -->
+    <div class="modal-backdrop" *ngIf="confirmPayload()" (click)="confirmCancel()">
+      <div class="modal-box" (click)="$event.stopPropagation()">
+        <div class="modal-icon-wrap">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
+            <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+        </div>
+        <h2 class="modal-title">Confirm Schedule</h2>
+        <div class="modal-rows">
+          <div class="modal-row">
+            <span class="mrow-label">Class</span>
+            <span class="mrow-value">{{ confirmPayload()!.className }}</span>
+          </div>
+          <div class="modal-row">
+            <span class="mrow-label">Chapter</span>
+            <span class="mrow-value">{{ confirmPayload()!.chapter }}</span>
+          </div>
+          <div class="modal-row" *ngIf="confirmPayload()!.division">
+            <span class="mrow-label">Division</span>
+            <span class="mrow-value">{{ confirmPayload()!.division }}</span>
+          </div>
+          <div class="modal-row">
+            <span class="mrow-label">Time</span>
+            <span class="mrow-value">{{ confirmPayload()!.time }} IST</span>
+          </div>
+          <div class="modal-row">
+            <span class="mrow-label">Duration</span>
+            <span class="mrow-value">{{ confirmPayload()!.duration }} min</span>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="modal-cancel" (click)="confirmCancel()">Cancel</button>
+          <button class="modal-confirm" (click)="confirmOk()">Schedule class →</button>
+        </div>
+      </div>
+    </div>
+
     <div class="page">
       <header class="page-header">
         <a routerLink="/schedule" class="back-link">← Schedule</a>
         <h1>{{ isEdit() ? 'Edit Session' : 'Schedule a Class' }}</h1>
+        <p class="page-sub" *ngIf="!isEdit() && !auth.isAdmin()">
+          Scheduling as <strong>{{ auth.userProfile()?.name }}</strong>
+          &nbsp;·&nbsp; {{ defaultCenterName }}
+        </p>
       </header>
 
       <form [formGroup]="form" (ngSubmit)="submit()" class="form-card">
 
-        <!-- Center & Batch: fixed for now (no per-center management yet) -->
-        <div class="section" *ngIf="!isEdit()">
-          <h3>Center & Batch</h3>
-          <div class="fields">
-            <div class="field">
-              <label>Center</label>
-              <input type="text" [value]="defaultCenterName" readonly />
-            </div>
-            <div class="field">
-              <label>Batch</label>
-              <input type="text" [value]="defaultBatchName" readonly />
-            </div>
-          </div>
-        </div>
-
-        <!-- Class / Subject / Chapter: cascading dropdowns sourced from the canonical syllabus -->
+        <!-- Class / Subject / Chapter / Division: cascading dropdowns -->
         <div class="section" *ngIf="!isEdit()">
           <h3>Class Details</h3>
           <div class="fields">
@@ -65,7 +101,7 @@ interface ImageItem {
                 <option value="">— Select class —</option>
                 <option *ngFor="let c of classOptions()" [value]="c.classId">{{ c.className }}</option>
               </select>
-              <small class="error" *ngIf="classLoadError()">Couldn't load the class list from the syllabus server. Check your connection and that this site is allowed by content.scholo.co.in, then reload.</small>
+              <small class="field-error" *ngIf="classLoadError()">Couldn't load classes — check connection and reload.</small>
             </div>
             <div class="field">
               <label>Subject *</label>
@@ -78,24 +114,28 @@ interface ImageItem {
               <label>Chapter *</label>
               <select formControlName="chapterCode" (change)="onChapterChange()" [disabled]="chapters().length === 0">
                 <option value="">— Select chapter —</option>
-                <option *ngFor="let ch of chapters()" [value]="ch.code">{{ ch.name }}</option>
+                <option *ngFor="let ch of chapters()" [value]="ch.code"
+                        [disabled]="doneChapterCodes().has(ch.code)">
+                  {{ doneChapterCodes().has(ch.code) ? '✓ ' : '' }}{{ ch.name }}
+                </option>
               </select>
-              <small *ngIf="doneInSubject() > 0" class="done-hint">
-                ✓ {{ doneInSubject() }} {{ doneInSubject() === 1 ? 'chapter' : 'chapters' }} already completed — not shown
+              <small *ngIf="doneChapterCodes().size > 0" class="progress-hint">
+                Greyed-out chapters are already completed. To teach one again,
+                update the progress on the <a routerLink="/progress" class="hint-link">Progress page</a>.
               </small>
             </div>
             <div class="field full" *ngIf="divisions().length > 0">
-              <label>Division (subsection)</label>
+              <label>Division <span class="opt-label">(optional)</span></label>
               <select (change)="onDivisionChange($any($event.target).value)">
-                <option value="">— Select division (optional) —</option>
+                <option value="">— Select division —</option>
                 <option *ngFor="let d of divisions()" [value]="d.code">{{ d.code }} — {{ d.name }}</option>
               </select>
             </div>
           </div>
-          <small *ngIf="syllabusLoading()">Loading syllabus…</small>
+          <small *ngIf="syllabusLoading()" class="loading-hint">Loading syllabus…</small>
         </div>
 
-        <!-- Edit mode: chapter dropdown only, scoped to the session's existing class/subject -->
+        <!-- Edit mode: chapter only -->
         <div class="section" *ngIf="isEdit()">
           <h3>Chapter</h3>
           <div class="field">
@@ -107,9 +147,9 @@ interface ImageItem {
           </div>
         </div>
 
-        <!-- When -->
+        <!-- Date & Time -->
         <div class="section">
-          <h3>Date & Time <span class="hint">(IST — Asia/Kolkata)</span></h3>
+          <h3>Date & Time <span class="section-hint">(IST)</span></h3>
           <div class="fields">
             <div class="field">
               <label>Date *</label>
@@ -118,52 +158,41 @@ interface ImageItem {
             <div class="field">
               <label>Start time *</label>
               <div class="time-picker">
-                <select [value]="timeHour()"
-                        (change)="updateTimePart('hour', $any($event.target).value)">
+                <select [value]="timeHour()" (change)="updateTimePart('hour', $any($event.target).value)">
                   <option value="">Hr</option>
                   <option *ngFor="let h of hours" [value]="h">{{ h }}</option>
                 </select>
-                <select [value]="timeMinute()"
-                        (change)="updateTimePart('minute', $any($event.target).value)">
+                <select [value]="timeMinute()" (change)="updateTimePart('minute', $any($event.target).value)">
                   <option *ngFor="let m of minutes" [value]="m">{{ m }}</option>
                 </select>
                 <div class="period-switch">
-                  <button type="button"
-                          [class.active]="timePeriod() === 'AM'"
-                          (click)="updateTimePart('period', 'AM')">AM</button>
-                  <button type="button"
-                          [class.active]="timePeriod() === 'PM'"
-                          (click)="updateTimePart('period', 'PM')">PM</button>
+                  <button type="button" [class.active]="timePeriod() === 'AM'" (click)="updateTimePart('period', 'AM')">AM</button>
+                  <button type="button" [class.active]="timePeriod() === 'PM'" (click)="updateTimePart('period', 'PM')">PM</button>
                 </div>
               </div>
             </div>
             <div class="field">
               <label>Duration *</label>
               <select formControlName="durationMinutes">
-                <option *ngFor="let d of durationOptions" [value]="d">{{ d }} minutes</option>
+                <option *ngFor="let d of durationOptions" [value]="d">{{ d }} min</option>
               </select>
             </div>
           </div>
           <div class="end-time-preview" *ngIf="endTimePreview()">
-            Session ends at <strong>{{ endTimePreview() }} IST</strong>
+            Ends at <strong>{{ endTimePreview() }} IST</strong>
           </div>
         </div>
 
-        <!-- Teacher: admins assign any teacher; teachers always schedule for themselves -->
+        <!-- Teacher (admin only for assignment) -->
         <div class="section" *ngIf="!isEdit() && auth.isAdmin()">
           <h3>Teacher</h3>
           <div class="field">
-            <label>Select Teacher *</label>
+            <label>Assign Teacher *</label>
             <select formControlName="teacherId" (change)="onTeacherChange()">
               <option value="">— Select teacher —</option>
               <option *ngFor="let t of teachers()" [value]="t.uid">{{ t.name }}</option>
             </select>
           </div>
-        </div>
-
-        <div class="section" *ngIf="!isEdit() && !auth.isAdmin()">
-          <h3>Teacher</h3>
-          <p class="self-note">Scheduling as <strong>{{ auth.userProfile()?.name }}</strong>.</p>
         </div>
 
         <!-- Meet link -->
@@ -172,22 +201,22 @@ interface ImageItem {
           <div class="field full">
             <label>Google Meet URL *</label>
             <input formControlName="meetLink" type="url" placeholder="https://meet.google.com/xxx-xxxx-xxx" />
-            <small>Entered manually. All who can read global_meetings can see this URL.</small>
+            <small>Visible to all who can read this session's record.</small>
           </div>
         </div>
 
-        <!-- Live-class thumbnail images (temporary; used by the student app while the class is live) -->
+        <!-- Live-class thumbnail images -->
         <div class="section" *ngIf="canEditImages()">
-          <h3>Live class images <span class="hint">(optional, up to {{ maxImages }})</span></h3>
-          <p class="img-note">Combined and animated as the live thumbnail. Removed automatically after the class.</p>
+          <h3>Live images <span class="section-hint">(optional, up to {{ maxImages }})</span></h3>
+          <p class="img-note">Shown as an animated thumbnail while the class is live.</p>
           <div class="img-grid">
             <div class="img-item" *ngFor="let img of images(); let i = index">
               <img [src]="img.preview" alt="Live class image {{ i + 1 }}" />
               <span class="img-badge">{{ i + 1 }}</span>
               <div class="img-actions">
-                <button type="button" (click)="moveImage(i, -1)" [disabled]="i === 0 || busy()" aria-label="Move earlier">←</button>
-                <button type="button" (click)="moveImage(i, 1)" [disabled]="i === images().length - 1 || busy()" aria-label="Move later">→</button>
-                <button type="button" (click)="removeImage(i)" [disabled]="busy()" aria-label="Remove">✕</button>
+                <button type="button" (click)="moveImage(i, -1)" [disabled]="i === 0 || busy()">←</button>
+                <button type="button" (click)="moveImage(i, 1)" [disabled]="i === images().length - 1 || busy()">→</button>
+                <button type="button" (click)="removeImage(i)" [disabled]="busy()">✕</button>
               </div>
             </div>
             <label class="img-add" *ngIf="images().length < maxImages">
@@ -197,40 +226,44 @@ interface ImageItem {
           </div>
           <div class="progress" *ngIf="uploadProgress() !== null">
             <div class="bar"><div class="fill" [style.width.%]="(uploadProgress() ?? 0) * 100"></div></div>
-            <small>Uploading images… {{ ((uploadProgress() ?? 0) * 100) | number:'1.0-0' }}%</small>
+            <small>Uploading… {{ ((uploadProgress() ?? 0) * 100) | number:'1.0-0' }}%</small>
           </div>
-          <div class="error inline" *ngIf="imageError()">{{ imageError() }}</div>
+          <div class="field-error inline-err" *ngIf="imageError()">{{ imageError() }}</div>
         </div>
 
-        <div class="error" *ngIf="error()">{{ error() }}</div>
+        <div class="form-error" *ngIf="error()">{{ error() }}</div>
 
         <div class="form-actions">
           <a routerLink="/schedule" class="btn-cancel">{{ createdId() ? 'Skip images' : 'Cancel' }}</a>
           <button type="submit" [disabled]="loading() || form.invalid" class="btn-submit">
-            {{ loading() ? 'Saving…' : (createdId() ? 'Retry image upload' : (isEdit() ? 'Save Changes' : 'Schedule Class')) }}
+            {{ loading() ? 'Saving…' : (createdId() ? 'Retry images' : (isEdit() ? 'Save Changes' : 'Schedule Class')) }}
           </button>
         </div>
       </form>
     </div>
   `,
   styles: [`
-    .page { max-width: 780px; margin: 0 auto; }
-    .back-link { color: var(--brand); text-decoration: none; font-size: 14px; display: block; margin-bottom: 12px; }
-    h1 { margin: 0 0 24px; font-size: 22px; font-weight: 700; color: var(--text-primary); }
+    /* Page */
+    .page { max-width: 760px; margin: 0 auto; }
+    .back-link { color: var(--brand); text-decoration: none; font-size: 13px; display: block; margin-bottom: 6px; }
+    h1 { margin: 0 0 4px; font-size: 20px; font-weight: 700; color: var(--text-primary); }
+    .page-sub { margin: 0 0 14px; font-size: 13px; color: var(--text-muted); }
 
+    /* Form card */
     .form-card { background: var(--surface-primary); border-radius: 12px; box-shadow: var(--shadow-sm); overflow: hidden; }
-    .section { padding: 22px 24px; border-bottom: 1px solid var(--border-subtle); }
-    h3 { margin: 0 0 14px; font-size: 15px; font-weight: 600; color: var(--text-primary); }
-    .hint { font-weight: 400; color: var(--text-placeholder); font-size: 13px; }
+    .section { padding: 18px 22px; border-bottom: 1px solid var(--border-subtle); }
+    h3 { margin: 0 0 12px; font-size: 14px; font-weight: 600; color: var(--text-primary); }
+    .section-hint { font-weight: 400; color: var(--text-placeholder); font-size: 12px; }
 
-    .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-    .field { display: flex; flex-direction: column; gap: 5px; }
+    .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .field { display: flex; flex-direction: column; gap: 4px; }
     .field.full { grid-column: 1 / -1; }
 
-    label { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+    label { font-size: 12px; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.01em; }
+    .opt-label { font-weight: 400; color: var(--text-placeholder); }
 
     input, select, textarea {
-      padding: 10px 12px;
+      padding: 9px 11px;
       border: 1px solid var(--border-default);
       border-radius: 8px;
       font-size: 14px;
@@ -243,94 +276,125 @@ interface ImageItem {
     select:disabled { background: var(--surface-secondary); color: var(--text-placeholder); cursor: not-allowed; }
 
     small { color: var(--text-placeholder); font-size: 12px; }
-    .done-hint { color: var(--success, #16a34a); }
-    .self-note { margin: 0; color: var(--text-secondary); font-size: 14px; }
 
-    .end-time-preview {
-      margin-top: 10px;
-      font-size: 13px;
+    .progress-hint {
       color: var(--text-muted);
+      font-size: 12px;
+      margin-top: 2px;
     }
+    .hint-link { color: var(--brand); text-decoration: none; font-weight: 600; }
+    .hint-link:hover { text-decoration: underline; }
 
-    .error {
-      margin: 0 24px;
+    .loading-hint { color: var(--text-placeholder); font-size: 12px; display: block; margin-top: 8px; }
+
+    .end-time-preview { margin-top: 8px; font-size: 12px; color: var(--text-muted); }
+
+    .field-error { color: var(--danger-text, #dc2626); font-size: 12px; }
+
+    .form-error {
+      margin: 0 22px;
       padding: 10px 12px;
       background: var(--danger-bg);
-      border: 1px solid rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239,68,68,.2);
       color: var(--danger-text);
       border-radius: 8px;
       font-size: 13px;
     }
+    .inline-err { margin: 8px 0 0; }
 
-    .form-actions { display: flex; justify-content: flex-end; gap: 12px; padding: 20px 24px; }
+    .form-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 22px; }
 
     .btn-cancel {
-      padding: 10px 18px;
+      padding: 9px 16px;
       border: 1px solid var(--border-default);
       border-radius: 8px;
       text-decoration: none;
       color: var(--text-secondary);
-      font-size: 14px;
+      font-size: 13px;
     }
-
     .btn-submit {
-      padding: 10px 22px;
+      padding: 9px 20px;
       background: var(--brand);
       color: var(--text-inverse);
       border: none;
       border-radius: 8px;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 600;
       cursor: pointer;
     }
     .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
 
-    .img-note { margin: 0 0 12px; font-size: 12px; color: var(--text-placeholder); }
-    .img-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+    /* Images */
+    .img-note { margin: 0 0 10px; font-size: 12px; color: var(--text-placeholder); }
+    .img-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
     .img-item { position: relative; border: 1px solid var(--border-default); border-radius: 8px; overflow: hidden; background: var(--surface-secondary); }
-    .img-item img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
-    .img-badge { position: absolute; top: 6px; left: 6px; background: rgba(15,23,42,.75); color: var(--text-inverse); font-size: 11px; border-radius: 10px; padding: 1px 7px; }
-    .img-actions { display: flex; justify-content: space-between; padding: 4px; gap: 4px; }
-    .img-actions button { flex: 1; padding: 4px 0; border: 1px solid var(--border-default); border-radius: 6px; background: var(--surface-primary); cursor: pointer; font-size: 13px; }
+    .img-item img { display: block; width: 100%; aspect-ratio: 4/3; object-fit: cover; }
+    .img-badge { position: absolute; top: 5px; left: 5px; background: rgba(15,23,42,.75); color: #fff; font-size: 10px; border-radius: 10px; padding: 1px 6px; }
+    .img-actions { display: flex; justify-content: space-between; padding: 3px; gap: 3px; }
+    .img-actions button { flex: 1; padding: 4px 0; border: 1px solid var(--border-default); border-radius: 6px; background: var(--surface-primary); cursor: pointer; font-size: 12px; color: var(--text-primary); }
     .img-actions button:disabled { opacity: .4; cursor: not-allowed; }
-    .img-add { display: flex; align-items: center; justify-content: center; min-height: 100px; border: 2px dashed var(--border-strong); border-radius: 8px; color: var(--brand); font-size: 13px; font-weight: 600; cursor: pointer; }
-    .progress { margin-top: 12px; }
-    .bar { height: 6px; background: var(--border-default); border-radius: 3px; overflow: hidden; margin-bottom: 4px; }
+    .img-add { display: flex; align-items: center; justify-content: center; min-height: 90px; border: 2px dashed var(--border-strong); border-radius: 8px; color: var(--brand); font-size: 13px; font-weight: 600; cursor: pointer; }
+    .progress { margin-top: 10px; }
+    .bar { height: 5px; background: var(--border-default); border-radius: 3px; overflow: hidden; margin-bottom: 4px; }
     .fill { height: 100%; background: var(--brand); transition: width .15s; }
-    .error.inline { margin: 12px 0 0; }
 
     /* Time picker */
-    .time-picker {
-      display: grid;
-      grid-template-columns: minmax(72px, .8fr) minmax(64px, .7fr) auto;
-      gap: 8px;
-      align-items: center;
+    .time-picker { display: grid; grid-template-columns: minmax(68px, .8fr) minmax(60px, .7fr) auto; gap: 8px; align-items: center; }
+    .period-switch { display: flex; border: 1px solid var(--border-default); border-radius: 8px; overflow: hidden; background: var(--surface-secondary); }
+    .period-switch button { flex: 1; padding: 8px 10px; border: none; background: transparent; font-size: 12px; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: background .12s, color .12s; font-family: inherit; }
+    .period-switch button.active { background: var(--text-primary); color: var(--surface-primary); }
+
+    /* Confirm modal */
+    .modal-backdrop {
+      position: fixed; inset: 0; z-index: 900;
+      background: rgba(0,0,0,.4);
+      backdrop-filter: blur(2px);
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+      animation: fade-in .15s ease;
+    }
+    @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+    .modal-box {
+      background: var(--surface-primary);
+      border-radius: 16px;
+      padding: 28px 28px 22px;
+      width: 100%; max-width: 360px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.25);
+      animation: slide-up .18s ease;
+      display: flex; flex-direction: column; gap: 18px;
+    }
+    @keyframes slide-up { from { transform: translateY(12px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+    .modal-icon-wrap {
+      width: 48px; height: 48px;
+      border-radius: 12px;
+      background: var(--brand-subtle, rgba(99,102,241,.1));
+      color: var(--brand);
+      display: flex; align-items: center; justify-content: center;
     }
 
-    .period-switch {
-      display: flex;
-      border: 1px solid #d1d5db;
-      border-radius: 8px;
-      overflow: hidden;
-      background: #fff;
-    }
+    .modal-title { margin: 0; font-size: 17px; font-weight: 700; color: var(--text-primary); }
 
-    .period-switch button {
-      flex: 1;
-      padding: 9px 12px;
-      border: none;
-      background: transparent;
-      font-size: 13px;
-      font-weight: 600;
-      color: #6b7280;
-      cursor: pointer;
-      transition: background 0.12s, color 0.12s;
-    }
+    .modal-rows { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border-subtle); border-radius: 10px; overflow: hidden; }
+    .modal-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 9px 14px; border-bottom: 1px solid var(--border-subtle); }
+    .modal-row:last-child { border-bottom: none; }
+    .mrow-label { font-size: 12px; font-weight: 600; color: var(--text-muted); flex-shrink: 0; padding-top: 1px; }
+    .mrow-value { font-size: 13px; color: var(--text-primary); text-align: right; font-weight: 500; }
 
-    .period-switch button.active {
-      background: #111827;
-      color: #fff;
+    .modal-actions { display: flex; gap: 10px; }
+    .modal-cancel {
+      flex: 1; padding: 10px; border: 1px solid var(--border-default); border-radius: 9px;
+      background: transparent; color: var(--text-secondary); font-size: 13px; font-weight: 500;
+      cursor: pointer; font-family: inherit;
     }
+    .modal-confirm {
+      flex: 2; padding: 10px; border: none; border-radius: 9px;
+      background: var(--brand); color: var(--text-inverse); font-size: 13px; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+    }
+    .modal-confirm:hover { opacity: .92; }
+    .modal-cancel:hover { background: var(--surface-secondary); }
   `],
 })
 export class ScheduleFormComponent implements OnInit {
@@ -349,6 +413,7 @@ export class ScheduleFormComponent implements OnInit {
   loading = signal(false);
   syllabusLoading = signal(false);
   error = signal<string | null>(null);
+  confirmPayload = signal<ConfirmPayload | null>(null);
 
   readonly defaultCenterName = 'Scholo Basic';
   readonly defaultBatchName = 'Default batch';
@@ -371,28 +436,21 @@ export class ScheduleFormComponent implements OnInit {
     (this.classSyllabus()?.subjects ?? []).flatMap(s => s.chapters),
   );
 
-  /** How many chapters in the CURRENT SUBJECT are already done (flatIdx < progress cursor). */
-  doneInSubject = computed<number>(() => {
-    if (this.isEdit()) return 0;
-    const curCode = this.curChapterCode();
-    if (!curCode) return 0;
-    const allCh = this.allChapters();
-    const curFlatIdx = allCh.findIndex(c => c.code === curCode);
-    if (curFlatIdx <= 0) return 0;
-    return (this.selectedSubject()?.chapters ?? []).filter(ch => {
-      const fi = allCh.findIndex(c => c.code === ch.code);
-      return fi >= 0 && fi < curFlatIdx;
-    }).length;
-  });
-
-  chapters = computed<Chapter[]>(() => {
-    const sub = this.selectedSubject()?.chapters ?? [];
-    if (this.isEdit() || !this.curChapterCode()) return sub;
+  /** Set of chapter codes in the current subject that are already completed (flatIdx < progress cursor). */
+  doneChapterCodes = computed<Set<string>>(() => {
+    if (this.isEdit() || !this.curChapterCode()) return new Set();
     const allCh = this.allChapters();
     const curFlatIdx = allCh.findIndex(c => c.code === this.curChapterCode());
-    if (curFlatIdx <= 0) return sub;
-    return sub.filter(ch => allCh.findIndex(c => c.code === ch.code) >= curFlatIdx);
+    if (curFlatIdx <= 0) return new Set();
+    return new Set(
+      (this.selectedSubject()?.chapters ?? [])
+        .filter(ch => allCh.findIndex(c => c.code === ch.code) < curFlatIdx)
+        .map(ch => ch.code),
+    );
   });
+
+  /** All chapters in the selected subject — done ones are shown disabled, not hidden. */
+  chapters = computed<Chapter[]>(() => this.selectedSubject()?.chapters ?? []);
 
   durationOptions = DURATION_OPTIONS;
 
@@ -685,42 +743,61 @@ export class ScheduleFormComponent implements OnInit {
     }
   }
 
-  async submit() {
+  submit() {
     if (this.form.invalid) return;
     this.error.set(null);
 
     const v = this.form.getRawValue();
+
+    // Retry path: the meeting already exists, only images remain.
+    const existingId = this.createdId();
+    if (existingId) {
+      this.doSave();
+      return;
+    }
+
+    // Edit mode: save directly (no confirmation needed for edits).
+    if (this.isEdit()) {
+      this.doSave();
+      return;
+    }
+
+    // New schedule: show in-app confirmation modal.
+    const classEntry = this.classOptions().find(c => c.classId === v.classId);
+    const chapter = this.chapters().find(c => c.code === v.chapterCode);
+    const division = this.selectedDivision();
+    const h24 = parseInt(v.timeStr.split(':')[0], 10);
+    const period = h24 >= 12 ? 'PM' : 'AM';
+    const h12 = h24 % 12 || 12;
+    this.confirmPayload.set({
+      className: classEntry?.className ?? v.classId,
+      chapter: chapter?.name ?? v.chapterCode,
+      division: division ? `${division.code} — ${division.name}` : null,
+      time: `${h12}:${v.timeStr.split(':')[1]} ${period}`,
+      duration: v.durationMinutes,
+    });
+  }
+
+  confirmCancel() {
+    this.confirmPayload.set(null);
+  }
+
+  confirmOk() {
+    this.confirmPayload.set(null);
+    this.doSave();
+  }
+
+  private async doSave() {
+    const v = this.form.getRawValue();
     const meetingId = this.route.snapshot.paramMap.get('meetingId');
     const wantsImages = this.canEditImages() && (this.images().length > 0 || this.originalSlots.length > 0);
 
-    // Retry path: the meeting already exists, only images remain.
     const existingId = this.createdId();
     if (existingId) {
       this.loading.set(true);
       if (await this.saveImages(existingId)) this.router.navigate(['/schedule']);
       this.loading.set(false);
       return;
-    }
-
-    // Confirmation popup for new schedule only.
-    if (!this.isEdit()) {
-      const classEntry = this.classOptions().find(c => c.classId === v.classId);
-      const chapter = this.chapters().find(c => c.code === v.chapterCode);
-      const division = this.selectedDivision();
-      const h24 = parseInt(v.timeStr.split(':')[0], 10);
-      const period = h24 >= 12 ? 'PM' : 'AM';
-      const h12 = h24 % 12 || 12;
-      const displayTime = `${h12}:${v.timeStr.split(':')[1]} ${period} IST`;
-      const divLine = division ? `\nDivision: ${division.code} — ${division.name}` : '';
-      const msg = [
-        `${classEntry?.className ?? v.classId}`,
-        `Chapter: ${chapter?.name ?? v.chapterCode}${divLine}`,
-        ``,
-        `Time: ${displayTime}  ·  ${v.durationMinutes} min`,
-        ``,
-        `Schedule this class?`,
-      ].join('\n');
-      if (!window.confirm(msg)) return;
     }
 
     this.loading.set(true);
@@ -748,8 +825,8 @@ export class ScheduleFormComponent implements OnInit {
       const classEntry = this.classOptions().find(c => c.classId === v.classId);
       const subject = this.subjects().find(s => s.code === v.subjectCode);
       const chapter = this.chapters().find(c => c.code === v.chapterCode);
-
       const division = this.selectedDivision();
+
       const res = await this.service.createMeeting({
         classId: v.classId,
         className: classEntry?.className ?? v.classId,
