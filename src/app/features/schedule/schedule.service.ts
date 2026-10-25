@@ -100,26 +100,31 @@ export class ScheduleService {
     );
   }
 
-  /** Teacher view: filtered server-side by teacherId — this is the privacy
-   *  boundary, not just a UI filter, so it also cuts reads to just their own
-   *  sessions instead of scanning the whole collection. */
+  /** Teacher view: single equality filter (no composite index needed), then
+   *  date-window filtering and sorting done in memory. */
   private listMine(daysBack: number, pageLimit: number): Promise<FireResponse<Meeting[]>> {
     const uid = this.auth.uid;
     if (!uid) return Promise.resolve({ ok: false, message: 'Not authenticated' });
 
-    return this.cache.get(`meetings:mine:${uid}:${daysBack}`, CACHE_TTL.SCHEDULE_WINDOW, () =>
-      this.fs.getAllOnce<Meeting>(
+    return this.cache.get(`meetings:mine:${uid}:${daysBack}`, CACHE_TTL.SCHEDULE_WINDOW, async () => {
+      const res = await this.fs.getAllOnce<Meeting>(
         COLLECTION,
         where('teacherId', '==', uid),
-        where('date', '>=', this.windowStart(daysBack)),
-        orderBy('date', 'desc'),
-        limit(pageLimit),
-      ),
-    );
+        limit(500),
+      );
+      if (!res.ok) return res;
+      const cutoff = this.windowStart(daysBack).toMillis();
+      const data = (res.data ?? [])
+        .filter(m => m.date.toMillis() >= cutoff)
+        .sort((a, b) => b.date.toMillis() - a.date.toMillis())
+        .slice(0, pageLimit);
+      return { ok: true, data };
+    });
   }
 
   /** Classes scheduled this week / this month / ever, by class date (IST calendar).
-   *  Admins count every meeting; teachers only their own (filtered server-side). */
+   *  Admins use server-side count queries; teachers fetch their own meetings in a
+   *  single equality query (no composite index needed) and count in memory. */
   getCounts(): Promise<FireResponse<ScheduleCounts>> {
     const uid = this.auth.uid;
     const admin = this.auth.isAdmin();
@@ -127,17 +132,38 @@ export class ScheduleService {
 
     const key = `meetings:counts:${admin ? 'all' : uid}`;
     return this.cache.get(key, CACHE_TTL.SCHEDULE_WINDOW, async () => {
-      const scope = admin ? [] : [where('teacherId', '==', uid!)];
-      const p = istPeriods();
-      const [week, month, total] = await Promise.all([
-        this.fs.count(COLLECTION, ...scope, where('date', '>=', p.weekStart), where('date', '<', p.weekEnd)),
-        this.fs.count(COLLECTION, ...scope, where('date', '>=', p.monthStart), where('date', '<', p.monthEnd)),
-        this.fs.count(COLLECTION, ...scope),
-      ]);
-      if (!week.ok || !month.ok || !total.ok) {
-        return { ok: false, message: week.message ?? month.message ?? total.message } as FireResponse<ScheduleCounts>;
+      if (admin) {
+        const p = istPeriods();
+        const [week, month, total] = await Promise.all([
+          this.fs.count(COLLECTION, where('date', '>=', p.weekStart), where('date', '<', p.weekEnd)),
+          this.fs.count(COLLECTION, where('date', '>=', p.monthStart), where('date', '<', p.monthEnd)),
+          this.fs.count(COLLECTION),
+        ]);
+        if (!week.ok || !month.ok || !total.ok) {
+          return { ok: false, message: week.message ?? month.message ?? total.message } as FireResponse<ScheduleCounts>;
+        }
+        return { ok: true, data: { week: week.data!, month: month.data!, total: total.data! } };
       }
-      return { ok: true, data: { week: week.data!, month: month.data!, total: total.data! } };
+
+      // Teacher: single equality query, count in memory to avoid composite index.
+      const res = await this.fs.getAllOnce<Meeting>(
+        COLLECTION,
+        where('teacherId', '==', uid!),
+        limit(1000),
+      );
+      if (!res.ok) return { ok: false, message: res.message } as FireResponse<ScheduleCounts>;
+      const meetings = res.data ?? [];
+      const p = istPeriods();
+      const weekMs  = [p.weekStart.toMillis(),  p.weekEnd.toMillis()];
+      const monthMs = [p.monthStart.toMillis(), p.monthEnd.toMillis()];
+      return {
+        ok: true,
+        data: {
+          week:  meetings.filter(m => m.date.toMillis() >= weekMs[0]  && m.date.toMillis() < weekMs[1]).length,
+          month: meetings.filter(m => m.date.toMillis() >= monthMs[0] && m.date.toMillis() < monthMs[1]).length,
+          total: meetings.length,
+        },
+      };
     });
   }
 
