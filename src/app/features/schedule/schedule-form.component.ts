@@ -7,7 +7,10 @@ import { SyllabusService } from './syllabus.service';
 import { UsersDirectoryService } from '../../core/services/users/users-directory.service';
 import { AdminAuthService } from '../../core/services/auth/admin-auth.service';
 import { UploadService, MAX_LIVE_IMAGES, slotFromUrl } from '../../core/services/storage/upload.service';
+import { ProvidersService } from '../providers/providers.service';
+import { ClassProgressService } from '../progress/class-progress.service';
 import { UserModel } from '../../models/user/user.model';
+import { ClassDoc } from '../../models/content/content.model';
 import { ClassSyllabus, Subject, Chapter, SyllabusIndexEntry } from '../../models/syllabus/syllabus.model';
 
 const DURATION_OPTIONS = [30, 45, 60, 90, 120];
@@ -77,6 +80,9 @@ interface ImageItem {
                 <option value="">— Select chapter —</option>
                 <option *ngFor="let ch of chapters()" [value]="ch.code">{{ ch.name }}</option>
               </select>
+              <small *ngIf="doneInSubject() > 0" class="done-hint">
+                ✓ {{ doneInSubject() }} {{ doneInSubject() === 1 ? 'chapter' : 'chapters' }} already completed — not shown
+              </small>
             </div>
           </div>
           <small *ngIf="syllabusLoading()">Loading syllabus…</small>
@@ -230,6 +236,7 @@ interface ImageItem {
     select:disabled { background: var(--surface-secondary); color: var(--text-placeholder); cursor: not-allowed; }
 
     small { color: var(--text-placeholder); font-size: 12px; }
+    .done-hint { color: var(--success, #16a34a); }
     .self-note { margin: 0; color: var(--text-secondary); font-size: 14px; }
 
     .end-time-preview {
@@ -327,6 +334,8 @@ export class ScheduleFormComponent implements OnInit {
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private uploads = inject(UploadService);
+  private providersService = inject(ProvidersService);
+  private progressService = inject(ClassProgressService);
   auth = inject(AdminAuthService);
 
   isEdit = signal(false);
@@ -340,9 +349,40 @@ export class ScheduleFormComponent implements OnInit {
 
   classOptions = signal<SyllabusIndexEntry[]>([]);
   private classSyllabus = signal<ClassSyllabus | null>(null);
+  private classDocs = signal<ClassDoc[]>([]);
   subjects = computed<Subject[]>(() => this.classSyllabus()?.subjects ?? []);
   private selectedSubject = signal<Subject | null>(null);
-  chapters = computed<Chapter[]>(() => this.selectedSubject()?.chapters ?? []);
+
+  /** Chapter code currently set as progress for the selected class/center. */
+  private curChapterCode = signal<string | null>(null);
+
+  /** All chapters across every subject for the selected class (flat list, in order). */
+  private allChapters = computed<Chapter[]>(() =>
+    (this.classSyllabus()?.subjects ?? []).flatMap(s => s.chapters),
+  );
+
+  /** How many chapters in the CURRENT SUBJECT are already done (flatIdx < progress cursor). */
+  doneInSubject = computed<number>(() => {
+    if (this.isEdit()) return 0;
+    const curCode = this.curChapterCode();
+    if (!curCode) return 0;
+    const allCh = this.allChapters();
+    const curFlatIdx = allCh.findIndex(c => c.code === curCode);
+    if (curFlatIdx <= 0) return 0;
+    return (this.selectedSubject()?.chapters ?? []).filter(ch => {
+      const fi = allCh.findIndex(c => c.code === ch.code);
+      return fi >= 0 && fi < curFlatIdx;
+    }).length;
+  });
+
+  chapters = computed<Chapter[]>(() => {
+    const sub = this.selectedSubject()?.chapters ?? [];
+    if (this.isEdit() || !this.curChapterCode()) return sub;
+    const allCh = this.allChapters();
+    const curFlatIdx = allCh.findIndex(c => c.code === this.curChapterCode());
+    if (curFlatIdx <= 0) return sub;
+    return sub.filter(ch => allCh.findIndex(c => c.code === ch.code) >= curFlatIdx);
+  });
 
   durationOptions = DURATION_OPTIONS;
 
@@ -433,6 +473,13 @@ export class ScheduleFormComponent implements OnInit {
       this.classLoadError.set(true);
     }
 
+    // Pre-load Firestore class docs — needed to map catalog classId → docId/centerId
+    // for progress lookup. ProvidersService caches this for 5 min so it's free on repeat visits.
+    try {
+      const res = await this.providersService.listClasses();
+      if (res.ok) this.classDocs.set(res.data ?? []);
+    } catch { /* non-fatal */ }
+
     if (meetingId) {
       this.isEdit.set(true);
       const res = await this.service.getMeeting(meetingId);
@@ -486,12 +533,21 @@ export class ScheduleFormComponent implements OnInit {
     this.form.patchValue({ subjectCode: '', chapterCode: '' });
     this.classSyllabus.set(null);
     this.selectedSubject.set(null);
+    this.curChapterCode.set(null);
     if (!classId) return;
 
     this.syllabusLoading.set(true);
     const classSyllabus = await this.syllabusService.loadClass(classId);
     this.classSyllabus.set(classSyllabus);
     this.syllabusLoading.set(false);
+
+    // Find the Firestore class doc matching this catalog classId to get docId + centerId.
+    const docs = this.classDocs();
+    const classDoc = docs.find(d => d.classId === classId) ?? docs.find(d => d.id === classId);
+    if (classDoc?.providerId) {
+      const curCode = await this.progressService.getCurrentChapter(classDoc.id, classDoc.providerId).catch(() => null);
+      this.curChapterCode.set(curCode);
+    }
   }
 
   onSubjectChange() {
