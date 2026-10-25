@@ -8,5 +8,6 @@ export const CACHE_TTL = {
   STUDENTS_LIST: 5 * 60 * 1000,
   BATCH_LIST: 2 * 60 * 1000,
   PLAN_ITEMS: 2 * 60 * 1000,
-  SCHEDULE_WINDOW: 60 * 1000,       // 1 min — classes get scheduled/cancelled often
+  SCHEDULE_WINDOW: 3 * 60 * 1000,   // 3 min — fresh enough; was 1 min (too aggressive)
+  PROGRESS_CHAPTER: 2 * 60 * 1000,  // 2 min; invalidated immediately on write
 } as const;

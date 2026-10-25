@@ -100,21 +100,32 @@ export class ScheduleService {
     );
   }
 
+  /** Shared raw fetch for the current teacher's meetings.
+   *  Both listMine and getCounts resolve against this to avoid a duplicate
+   *  Firestore read when the dashboard calls them concurrently. */
+  private fetchAllMine(): Promise<Meeting[]> {
+    const uid = this.auth.uid;
+    if (!uid) return Promise.resolve([]);
+    return this.cache.get(`meetings:mine:${uid}:raw`, CACHE_TTL.SCHEDULE_WINDOW, async () => {
+      const res = await this.fs.getAllOnce<Meeting>(
+        COLLECTION,
+        where('teacherId', '==', uid),
+        limit(1000),
+      );
+      return res.data ?? [];
+    });
+  }
+
   /** Teacher view: single equality filter (no composite index needed), then
    *  date-window filtering and sorting done in memory. */
   private listMine(daysBack: number, pageLimit: number): Promise<FireResponse<Meeting[]>> {
     const uid = this.auth.uid;
     if (!uid) return Promise.resolve({ ok: false, message: 'Not authenticated' });
 
-    return this.cache.get(`meetings:mine:${uid}:${daysBack}`, CACHE_TTL.SCHEDULE_WINDOW, async () => {
-      const res = await this.fs.getAllOnce<Meeting>(
-        COLLECTION,
-        where('teacherId', '==', uid),
-        limit(500),
-      );
-      if (!res.ok) return res;
+    return this.cache.get(`meetings:mine:${uid}:${daysBack}:${pageLimit}`, CACHE_TTL.SCHEDULE_WINDOW, async () => {
+      const all = await this.fetchAllMine();
       const cutoff = this.windowStart(daysBack).toMillis();
-      const data = (res.data ?? [])
+      const data = all
         .filter(m => m.date.toMillis() >= cutoff)
         .sort((a, b) => b.date.toMillis() - a.date.toMillis())
         .slice(0, pageLimit);
@@ -145,14 +156,9 @@ export class ScheduleService {
         return { ok: true, data: { week: week.data!, month: month.data!, total: total.data! } };
       }
 
-      // Teacher: single equality query, count in memory to avoid composite index.
-      const res = await this.fs.getAllOnce<Meeting>(
-        COLLECTION,
-        where('teacherId', '==', uid!),
-        limit(1000),
-      );
-      if (!res.ok) return { ok: false, message: res.message } as FireResponse<ScheduleCounts>;
-      const meetings = res.data ?? [];
+      // Teacher: reuse the shared raw fetch (avoids a second read when
+      // listForCurrentUser() and getCounts() are called concurrently, e.g. on dashboard).
+      const meetings = await this.fetchAllMine();
       const p = istPeriods();
       const weekMs  = [p.weekStart.toMillis(),  p.weekEnd.toMillis()];
       const monthMs = [p.monthStart.toMillis(), p.monthEnd.toMillis()];
