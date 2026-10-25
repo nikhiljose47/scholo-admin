@@ -13,6 +13,8 @@ export interface Meeting {
   meetLink: string;
   chapterCode: string;
   chapterName?: string;
+  divisionCode?: string;
+  divisionName?: string;
   /** Always 'PART1' in existing docs; admin should keep same value for compat. */
   status: string;
   date: Timestamp;

@@ -204,6 +204,8 @@ export class ScheduleService {
     centerId: string;
     chapterCode: string;
     chapterName: string;
+    divisionCode?: string;
+    divisionName?: string;
     meetLink: string;
     dateStr: string;   // YYYY-MM-DD in IST
     timeStr: string;   // HH:MM in IST
@@ -227,6 +229,8 @@ export class ScheduleService {
       meetLink: data.meetLink,
       chapterCode: data.chapterCode,
       chapterName: data.chapterName,
+      ...(data.divisionCode && { divisionCode: data.divisionCode }),
+      ...(data.divisionName && { divisionName: data.divisionName }),
       status: 'PART1',
       date: startTs,
       endAt: endTs,

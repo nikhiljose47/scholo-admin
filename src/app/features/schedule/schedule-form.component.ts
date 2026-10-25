@@ -11,7 +11,7 @@ import { ProvidersService } from '../providers/providers.service';
 import { ClassProgressService } from '../progress/class-progress.service';
 import { UserModel } from '../../models/user/user.model';
 import { ClassDoc } from '../../models/content/content.model';
-import { ClassSyllabus, Subject, Chapter, SyllabusIndexEntry } from '../../models/syllabus/syllabus.model';
+import { ClassSyllabus, Subject, Chapter, Division, SyllabusIndexEntry } from '../../models/syllabus/syllabus.model';
 
 const DURATION_OPTIONS = [30, 45, 60, 90, 120];
 
@@ -76,13 +76,20 @@ interface ImageItem {
             </div>
             <div class="field full">
               <label>Chapter *</label>
-              <select formControlName="chapterCode" [disabled]="chapters().length === 0">
+              <select formControlName="chapterCode" (change)="onChapterChange()" [disabled]="chapters().length === 0">
                 <option value="">— Select chapter —</option>
                 <option *ngFor="let ch of chapters()" [value]="ch.code">{{ ch.name }}</option>
               </select>
               <small *ngIf="doneInSubject() > 0" class="done-hint">
                 ✓ {{ doneInSubject() }} {{ doneInSubject() === 1 ? 'chapter' : 'chapters' }} already completed — not shown
               </small>
+            </div>
+            <div class="field full" *ngIf="divisions().length > 0">
+              <label>Division (subsection)</label>
+              <select (change)="onDivisionChange($any($event.target).value)">
+                <option value="">— Select division (optional) —</option>
+                <option *ngFor="let d of divisions()" [value]="d.code">{{ d.code }} — {{ d.name }}</option>
+              </select>
             </div>
           </div>
           <small *ngIf="syllabusLoading()">Loading syllabus…</small>
@@ -352,6 +359,9 @@ export class ScheduleFormComponent implements OnInit {
   private classDocs = signal<ClassDoc[]>([]);
   subjects = computed<Subject[]>(() => this.classSyllabus()?.subjects ?? []);
   private selectedSubject = signal<Subject | null>(null);
+  selectedChapter = signal<Chapter | null>(null);
+  selectedDivision = signal<Division | null>(null);
+  divisions = computed<Division[]>(() => this.selectedChapter()?.divisions ?? []);
 
   /** Chapter code currently set as progress for the selected class/center. */
   private curChapterCode = signal<string | null>(null);
@@ -391,7 +401,7 @@ export class ScheduleFormComponent implements OnInit {
   readonly minutes = ['00','15','30','45'];
   timeHour = signal('');
   timeMinute = signal('00');
-  timePeriod = signal<'AM' | 'PM'>('AM');
+  timePeriod = signal<'AM' | 'PM'>('PM');
 
   // Live-class images
   readonly maxImages = MAX_LIVE_IMAGES;
@@ -533,6 +543,8 @@ export class ScheduleFormComponent implements OnInit {
     this.form.patchValue({ subjectCode: '', chapterCode: '' });
     this.classSyllabus.set(null);
     this.selectedSubject.set(null);
+    this.selectedChapter.set(null);
+    this.selectedDivision.set(null);
     this.curChapterCode.set(null);
     if (!classId) return;
 
@@ -555,6 +567,20 @@ export class ScheduleFormComponent implements OnInit {
     this.form.patchValue({ chapterCode: '' });
     const subject = this.subjects().find(s => s.code === code) ?? null;
     this.selectedSubject.set(subject);
+    this.selectedChapter.set(null);
+    this.selectedDivision.set(null);
+  }
+
+  onChapterChange() {
+    const code = this.form.get('chapterCode')?.value;
+    const chapter = this.chapters().find(c => c.code === code) ?? null;
+    this.selectedChapter.set(chapter);
+    this.selectedDivision.set(null);
+  }
+
+  onDivisionChange(code: string) {
+    const div = this.divisions().find(d => d.code === code) ?? null;
+    this.selectedDivision.set(div);
   }
 
   onTeacherChange() {
@@ -659,7 +685,6 @@ export class ScheduleFormComponent implements OnInit {
 
   async submit() {
     if (this.form.invalid) return;
-    this.loading.set(true);
     this.error.set(null);
 
     const v = this.form.getRawValue();
@@ -669,10 +694,34 @@ export class ScheduleFormComponent implements OnInit {
     // Retry path: the meeting already exists, only images remain.
     const existingId = this.createdId();
     if (existingId) {
+      this.loading.set(true);
       if (await this.saveImages(existingId)) this.router.navigate(['/schedule']);
       this.loading.set(false);
       return;
     }
+
+    // Confirmation popup for new schedule only.
+    if (!this.isEdit()) {
+      const classEntry = this.classOptions().find(c => c.classId === v.classId);
+      const chapter = this.chapters().find(c => c.code === v.chapterCode);
+      const division = this.selectedDivision();
+      const h24 = parseInt(v.timeStr.split(':')[0], 10);
+      const period = h24 >= 12 ? 'PM' : 'AM';
+      const h12 = h24 % 12 || 12;
+      const displayTime = `${h12}:${v.timeStr.split(':')[1]} ${period} IST`;
+      const divLine = division ? `\nDivision: ${division.code} — ${division.name}` : '';
+      const msg = [
+        `${classEntry?.className ?? v.classId}`,
+        `Chapter: ${chapter?.name ?? v.chapterCode}${divLine}`,
+        ``,
+        `Time: ${displayTime}  ·  ${v.durationMinutes} min`,
+        ``,
+        `Schedule this class?`,
+      ].join('\n');
+      if (!window.confirm(msg)) return;
+    }
+
+    this.loading.set(true);
 
     if (this.isEdit() && meetingId) {
       const chapter = this.chapters().find(c => c.code === v.chapterCode);
@@ -698,6 +747,7 @@ export class ScheduleFormComponent implements OnInit {
       const subject = this.subjects().find(s => s.code === v.subjectCode);
       const chapter = this.chapters().find(c => c.code === v.chapterCode);
 
+      const division = this.selectedDivision();
       const res = await this.service.createMeeting({
         classId: v.classId,
         className: classEntry?.className ?? v.classId,
@@ -707,6 +757,8 @@ export class ScheduleFormComponent implements OnInit {
         centerId: DEFAULT_CENTER_ID,
         chapterCode: v.chapterCode,
         chapterName: chapter?.name ?? v.chapterCode,
+        divisionCode: division?.code,
+        divisionName: division?.name,
         meetLink: v.meetLink,
         dateStr: v.dateStr,
         timeStr: v.timeStr,
