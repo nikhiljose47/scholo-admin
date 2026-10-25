@@ -249,8 +249,8 @@ interface NavItem {
       width: 30px;
       height: 30px;
       border-radius: 50%;
-      background: rgba(96, 165, 250, 0.18);
-      color: #93c5fd;
+      background: var(--sb-active-bg);
+      color: var(--sb-active-text);
       font-size: 11px;
       font-weight: 700;
       display: flex;

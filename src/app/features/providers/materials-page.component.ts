@@ -69,29 +69,29 @@ import { Chapter } from '../../models/syllabus/syllabus.model';
   `,
   styles: [`
     .page { max-width: 900px; margin: 0 auto; }
-    h1 { margin: 0; font-size: 22px; color: #1e293b; }
-    .page-header { margin-bottom: 18px; }
-    .page-header p, .muted { color: #64748b; font-size: 14px; margin: 4px 0 0; }
-    .msg { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; }
-    .err { background: #fef2f2; color: #b91c1c; }
-    .warn { background: #fffbeb; color: #92400e; }
-    .picker { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #334155; max-width: 360px; margin-bottom: 16px; }
-    label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #334155; margin-bottom: 10px; flex: 1; }
-    label small { color: #94a3b8; }
-    input, select { padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }
-    .form { background: #fff; border-radius: 12px; padding: 16px 18px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
-    h3 { margin: 0 0 10px; font-size: 15px; }
+    h1 { margin: 0; font-size: 22px; color: var(--text-primary); }
+    .page-header { margin-bottom: 20px; }
+    .page-header p, .muted { color: var(--text-muted); font-size: 14px; margin: 4px 0 0; }
+    .msg { padding: 10px 14px; border-radius: var(--r-md); font-size: 13px; margin-bottom: 12px; }
+    .err { background: var(--danger-bg); color: var(--danger-text); }
+    .warn { background: var(--warning-bg); color: var(--warning-text); }
+    .picker { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text-secondary); max-width: 360px; margin-bottom: 16px; }
+    label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text-secondary); margin-bottom: 10px; flex: 1; }
+    label small { color: var(--text-placeholder); }
+    input, select { padding: 8px 10px; background: var(--surface-primary); border: 1px solid var(--border-default); border-radius: var(--r-md); color: var(--text-primary); font: inherit; }
+    .form { background: var(--surface-primary); border: 1px solid var(--border-subtle); border-radius: var(--r-xl); padding: 16px 18px; margin-bottom: 16px; box-shadow: var(--shadow-sm); }
+    h3 { margin: 0 0 10px; font-size: 15px; color: var(--text-primary); }
     .row { display: flex; gap: 12px; flex-wrap: wrap; }
     .row label { min-width: 200px; }
     .btns { display: flex; gap: 8px; }
-    .btn-primary { background: #3b82f6; color: #fff; border: none; padding: 9px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; }
-    .btn-primary:disabled { background: #cbd5e1; }
-    .btn-ghost { background: #fff; border: 1px solid #cbd5e1; padding: 8px 14px; border-radius: 8px; cursor: pointer; }
-    .btn-danger { background: #fff; border: 1px solid #fecaca; color: #b91c1c; padding: 8px 14px; border-radius: 8px; cursor: pointer; }
-    .card { background: #fff; border-radius: 10px; padding: 12px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+    .btn-primary { background: var(--brand); color: #fff; border: none; padding: 9px 16px; border-radius: var(--r-md); font-weight: 600; cursor: pointer; }
+    .btn-primary:disabled { background: var(--border-strong); }
+    .btn-ghost { background: var(--surface-primary); border: 1px solid var(--border-default); color: var(--text-secondary); padding: 8px 14px; border-radius: var(--r-md); cursor: pointer; }
+    .btn-danger { background: var(--surface-primary); border: 1px solid var(--border-error-ring); color: var(--danger-text); padding: 8px 14px; border-radius: var(--r-md); cursor: pointer; }
+    .card { background: var(--surface-primary); border: 1px solid var(--border-subtle); border-radius: var(--r-lg); padding: 12px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; box-shadow: var(--shadow-sm); }
     .info { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-    .info small { color: #64748b; }
-    .info a { color: #3b82f6; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .info small { color: var(--text-muted); }
+    .info a { color: var(--text-link); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   `],
 })
 export class MaterialsPageComponent implements OnInit {

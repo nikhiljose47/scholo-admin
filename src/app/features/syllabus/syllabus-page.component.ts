@@ -89,32 +89,32 @@ type ClassEntry = SyllabusIndexEntry & { enabled: boolean };
     </ng-container>
   `,
   styles: [`
-    h1 { margin: 0 0 4px; }
-    .sub, .meta { color: #64748b; margin: 0 0 16px; }
-    .error { color: #dc2626; }
+    h1 { margin: 0 0 4px; color: var(--text-primary); }
+    .sub, .meta { color: var(--text-muted); margin: 0 0 16px; }
+    .error { color: var(--danger-color); }
     .toolbar { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 16px; }
-    .class-label, .filter-label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #475569; font-weight: 500; }
-    select { padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font: inherit; }
-    input[type=search] { padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font: inherit; min-width: 200px; }
+    .class-label, .filter-label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text-secondary); font-weight: 500; }
+    select { padding: 6px 10px; background: var(--surface-primary); border: 1px solid var(--border-default); border-radius: var(--r-sm); color: var(--text-primary); font: inherit; }
+    input[type=search] { padding: 6px 10px; background: var(--surface-primary); border: 1px solid var(--border-default); border-radius: var(--r-sm); color: var(--text-primary); font: inherit; min-width: 200px; }
 
-    .subject h2 { font-size: 17px; margin: 20px 0 8px; display: flex; align-items: center; gap: 8px; }
-    .subject-code { font-size: 11px; font-weight: 600; background: #f1f5f9; color: #64748b; padding: 2px 6px; border-radius: 4px; letter-spacing: .04em; }
+    .subject h2 { font-size: 17px; margin: 20px 0 8px; display: flex; align-items: center; gap: 8px; color: var(--text-primary); }
+    .subject-code { font-size: 11px; font-weight: 600; background: var(--surface-secondary); color: var(--text-muted); padding: 2px 6px; border-radius: var(--r-xs); letter-spacing: .04em; }
 
-    .chapter { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 8px; }
-    summary { padding: 10px 14px; cursor: pointer; display: flex; gap: 8px; align-items: center; }
-    .ch-code { font-size: 11px; background: #f8fafc; border: 1px solid #e2e8f0; color: #64748b; padding: 1px 6px; border-radius: 4px; white-space: nowrap; font-family: monospace; }
-    .count { margin-left: auto; color: #64748b; font-size: 12px; white-space: nowrap; }
+    .chapter { background: var(--surface-primary); border: 1px solid var(--border-default); border-radius: var(--r-md); margin-bottom: 8px; }
+    summary { padding: 10px 14px; cursor: pointer; display: flex; gap: 8px; align-items: center; color: var(--text-primary); }
+    .ch-code { font-size: 11px; background: var(--surface-secondary); border: 1px solid var(--border-default); color: var(--text-muted); padding: 1px 6px; border-radius: var(--r-xs); white-space: nowrap; font-family: var(--font-mono); }
+    .count { margin-left: auto; color: var(--text-muted); font-size: 12px; white-space: nowrap; }
 
     .body { padding: 0 14px 12px; }
-    h4 { margin: 12px 0 4px; font-size: 13px; color: #334155; }
+    h4 { margin: 12px 0 4px; font-size: 13px; color: var(--text-secondary); }
     ul { margin: 0; padding-left: 20px; }
-    table { border-collapse: collapse; width: 100%; font-size: 13px; }
-    th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid #e2e8f0; }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; color: var(--text-secondary); }
+    th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--border-default); }
 
-    .badge { background: #fee2e2; color: #b91c1c; font-size: 11px; padding: 1px 6px; border-radius: 10px; white-space: nowrap; }
-    .badge-warn { background: #fef3c7; color: #92400e; }
+    .badge { background: var(--danger-bg); color: var(--danger-text); font-size: 11px; padding: 1px 6px; border-radius: var(--r-full); white-space: nowrap; }
+    .badge-warn { background: var(--warning-bg); color: var(--warning-text); }
 
-    .no-match { font-size: 13px; color: #94a3b8; padding: 6px 0; }
+    .no-match { font-size: 13px; color: var(--text-placeholder); padding: 6px 0; }
   `],
 })
 export class SyllabusPageComponent implements OnInit {

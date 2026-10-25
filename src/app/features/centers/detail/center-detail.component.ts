@@ -102,7 +102,7 @@ type Tab = 'overview' | 'batches' | 'members' | 'audit';
   styles: [`
     .page { max-width: 1100px; margin: 0 auto; }
 
-    .back-link { color: #3b82f6; text-decoration: none; font-size: 14px; display: block; margin-bottom: 16px; }
+    .back-link { color: var(--brand); text-decoration: none; font-size: 14px; display: block; margin-bottom: 16px; }
 
     .page-header {
       margin-bottom: 24px;
@@ -118,26 +118,27 @@ type Tab = 'overview' | 'batches' | 'members' | 'audit';
     .center-initials {
       width: 56px;
       height: 56px;
-      background: #3b82f6;
+      background: var(--brand);
       color: #fff;
-      border-radius: 14px;
+      border-radius: var(--r-xl);
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 18px;
       font-weight: 700;
+      flex-shrink: 0;
     }
 
-    h1 { margin: 0; font-size: 22px; font-weight: 700; color: #1e293b; }
-    p { margin: 4px 0 0; color: #64748b; font-size: 14px; }
+    h1 { margin: 0; font-size: 22px; font-weight: 700; color: var(--text-primary); }
+    p { margin: 4px 0 0; color: var(--text-muted); font-size: 14px; }
 
     .header-actions { display: flex; gap: 10px; }
 
     .btn-primary {
       padding: 9px 16px;
-      background: #3b82f6;
+      background: var(--brand);
       color: #fff;
-      border-radius: 8px;
+      border-radius: var(--r-md);
       text-decoration: none;
       font-size: 14px;
       font-weight: 600;
@@ -145,17 +146,17 @@ type Tab = 'overview' | 'batches' | 'members' | 'audit';
 
     .btn-outline {
       padding: 9px 16px;
-      border: 1px solid #d1d5db;
-      border-radius: 8px;
+      border: 1px solid var(--border-default);
+      border-radius: var(--r-md);
       text-decoration: none;
-      color: #374151;
+      color: var(--text-secondary);
       font-size: 14px;
     }
 
     .tabs {
       display: flex;
       gap: 4px;
-      border-bottom: 2px solid #e2e8f0;
+      border-bottom: 2px solid var(--border-default);
       margin-bottom: 24px;
     }
 
@@ -165,87 +166,89 @@ type Tab = 'overview' | 'batches' | 'members' | 'audit';
       border: none;
       cursor: pointer;
       font-size: 14px;
-      color: #64748b;
+      color: var(--text-muted);
       border-bottom: 2px solid transparent;
       margin-bottom: -2px;
     }
 
-    .tab-btn.active { color: #3b82f6; border-bottom-color: #3b82f6; font-weight: 600; }
+    .tab-btn.active { color: var(--brand); border-bottom-color: var(--brand); font-weight: 600; }
 
     .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 
     .info-card {
-      background: #fff;
-      border-radius: 12px;
+      background: var(--surface-primary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--r-xl);
       padding: 20px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      box-shadow: var(--shadow-sm);
     }
 
-    h3 { margin: 0 0 14px; font-size: 15px; font-weight: 600; color: #1e293b; }
+    h3 { margin: 0 0 14px; font-size: 15px; font-weight: 600; color: var(--text-primary); }
 
     dl { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; margin: 0; }
-    dt { color: #64748b; font-size: 13px; font-weight: 500; }
-    dd { color: #1e293b; font-size: 13px; margin: 0; }
+    dt { color: var(--text-muted); font-size: 13px; font-weight: 500; }
+    dd { color: var(--text-primary); font-size: 13px; margin: 0; }
 
     .tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
-    .tag { padding: 4px 10px; background: #eff6ff; color: #1d4ed8; border-radius: 12px; font-size: 12px; }
+    .tag { padding: 4px 10px; background: var(--brand-subtle); color: var(--brand-text); border-radius: var(--r-full); font-size: 12px; }
 
-    .loading { color: #64748b; padding: 20px 0; }
+    .loading { color: var(--text-muted); padding: 20px 0; }
 
     .empty {
       padding: 40px;
       text-align: center;
-      color: #64748b;
+      color: var(--text-muted);
       font-size: 14px;
     }
 
-    .empty a { color: #3b82f6; }
+    .empty a { color: var(--brand); }
 
     .list { display: flex; flex-direction: column; gap: 8px; }
 
     .list-item {
-      background: #fff;
-      border-radius: 8px;
+      background: var(--surface-primary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--r-md);
       padding: 14px 16px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      box-shadow: var(--shadow-sm);
     }
 
     .list-item-main { display: flex; flex-direction: column; gap: 2px; }
-    .batch-name { font-weight: 600; font-size: 14px; color: #1e293b; }
-    .batch-meta { font-size: 12px; color: #64748b; }
+    .batch-name { font-weight: 600; font-size: 14px; color: var(--text-primary); }
+    .batch-meta { font-size: 12px; color: var(--text-muted); }
 
     .list-item-end { display: flex; align-items: center; gap: 10px; }
 
     .status-badge {
       padding: 3px 10px;
-      border-radius: 12px;
+      border-radius: var(--r-full);
       font-size: 11px;
       font-weight: 600;
       text-transform: uppercase;
     }
 
-    .status-badge.active { background: #d1fae5; color: #065f46; }
-    .status-badge.draft { background: #fef3c7; color: #92400e; }
-    .status-badge.completed { background: #eff6ff; color: #1d4ed8; }
-    .status-badge.archived { background: #f1f5f9; color: #475569; }
+    .status-badge.active { background: var(--success-bg); color: var(--success-text); }
+    .status-badge.draft { background: var(--warning-bg); color: var(--warning-text); }
+    .status-badge.completed { background: var(--info-bg); color: var(--info-text); }
+    .status-badge.archived { background: var(--surface-secondary); color: var(--text-secondary); }
 
-    .role-badge { padding: 3px 10px; background: #f3e8ff; color: #6b21a8; border-radius: 12px; font-size: 11px; }
+    .role-badge { padding: 3px 10px; background: var(--brand-muted); color: var(--brand-text); border-radius: var(--r-full); font-size: 11px; }
 
     .btn-sm {
       padding: 6px 12px;
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
+      background: var(--surface-secondary);
+      border: 1px solid var(--border-default);
+      border-radius: var(--r-sm);
       text-decoration: none;
       font-size: 12px;
-      color: #374151;
+      color: var(--text-secondary);
     }
 
-    .empty-page { padding: 80px; text-align: center; color: #64748b; }
-    .muted { color: #94a3b8; font-size: 13px; }
+    .empty-page { padding: 80px; text-align: center; color: var(--text-muted); }
+    .muted { color: var(--text-placeholder); font-size: 13px; }
   `],
 })
 export class CenterDetailComponent implements OnInit {

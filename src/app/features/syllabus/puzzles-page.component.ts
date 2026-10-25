@@ -52,23 +52,23 @@ import { ClassPuzzles } from '../../models/syllabus/syllabus.model';
     </ng-container>
   `,
   styles: [`
-    h1 { margin: 0 0 4px; }
-    .sub, .meta { color: #64748b; margin: 0 0 16px; }
-    .error { color: #dc2626; }
-    .toolbar { margin-bottom: 16px; }
-    select { margin-left: 8px; padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; }
-    .chapter { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 8px; }
-    summary { padding: 10px 14px; cursor: pointer; display: flex; gap: 10px; align-items: center; }
-    .count { margin-left: auto; color: #64748b; font-size: 12px; }
+    h1 { margin: 0 0 4px; color: var(--text-primary); }
+    .sub, .meta { color: var(--text-muted); margin: 0 0 16px; }
+    .error { color: var(--danger-color); }
+    .toolbar { margin-bottom: 16px; color: var(--text-secondary); }
+    select { margin-left: 8px; padding: 6px 10px; background: var(--surface-primary); border: 1px solid var(--border-default); border-radius: var(--r-sm); color: var(--text-primary); }
+    .chapter { background: var(--surface-primary); border: 1px solid var(--border-default); border-radius: var(--r-md); margin-bottom: 8px; }
+    summary { padding: 10px 14px; cursor: pointer; display: flex; gap: 10px; align-items: center; color: var(--text-primary); }
+    .count { margin-left: auto; color: var(--text-muted); font-size: 12px; }
     .body { padding: 0 14px 12px; }
-    h4 { margin: 12px 0 4px; font-size: 13px; color: #334155; }
+    h4 { margin: 12px 0 4px; font-size: 13px; color: var(--text-secondary); }
     ul { margin: 2px 0 8px; padding-left: 20px; }
-    .puzzle { border-top: 1px solid #e2e8f0; padding: 10px 0; }
-    .q { font-weight: 600; }
-    ol { margin: 6px 0 0; padding-left: 24px; }
-    li small { display: block; color: #64748b; }
-    li.correct { color: #15803d; font-weight: 600; }
-    li.correct small { color: #15803d; font-weight: 400; }
+    .puzzle { border-top: 1px solid var(--border-default); padding: 10px 0; }
+    .q { font-weight: 600; color: var(--text-primary); }
+    ol { margin: 6px 0 0; padding-left: 24px; color: var(--text-secondary); }
+    li small { display: block; color: var(--text-muted); }
+    li.correct { color: var(--success-color); font-weight: 600; }
+    li.correct small { color: var(--success-color); font-weight: 400; }
   `],
 })
 export class PuzzlesPageComponent implements OnInit {

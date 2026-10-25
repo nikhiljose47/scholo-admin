@@ -115,35 +115,36 @@ interface Draft {
   `,
   styles: [`
     .page { max-width: 1000px; margin: 0 auto; }
-    h1 { margin: 0; font-size: 22px; color: #1e293b; }
-    .page-header { margin-bottom: 18px; }
-    .page-header p, .muted { color: #64748b; font-size: 14px; margin: 4px 0 0; }
-    .msg { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; }
-    .err { background: #fef2f2; color: #b91c1c; }
-    .ok { background: #f0fdf4; color: #15803d; }
-    .layout { display: grid; grid-template-columns: 260px 1fr; gap: 18px; align-items: start; }
+    h1 { margin: 0; font-size: 22px; color: var(--text-primary); }
+    .page-header { margin-bottom: 20px; }
+    .page-header p, .muted { color: var(--text-muted); font-size: 14px; margin: 4px 0 0; }
+    .msg { padding: 10px 14px; border-radius: var(--r-md); font-size: 13px; margin-bottom: 12px; }
+    .err { background: var(--danger-bg); color: var(--danger-text); }
+    .ok { background: var(--success-bg); color: var(--success-text); }
+    .layout { display: grid; grid-template-columns: 260px 1fr; gap: 20px; align-items: start; }
     @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
     .list { display: flex; flex-direction: column; gap: 8px; }
-    .item { display: flex; align-items: center; gap: 10px; background: #fff; border: 2px solid transparent; border-radius: 10px; padding: 10px; cursor: pointer; text-align: left; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
-    .item.active { border-color: #3b82f6; }
-    .avatar { width: 38px; height: 38px; border-radius: 10px; background: #3b82f6; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; }
+    .item { display: flex; align-items: center; gap: 10px; background: var(--surface-primary); border: 2px solid transparent; border-radius: var(--r-lg); padding: 10px; cursor: pointer; text-align: left; box-shadow: var(--shadow-sm); }
+    .item.active { border-color: var(--brand); }
+    .avatar { width: 38px; height: 38px; border-radius: var(--r-lg); background: var(--brand); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; }
     .meta { flex: 1; display: flex; flex-direction: column; }
-    .meta small { color: #64748b; }
-    .editor { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
-    h2 { margin: 0 0 12px; font-size: 18px; }
-    h3 { margin: 18px 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: #64748b; }
+    .meta strong { color: var(--text-primary); }
+    .meta small { color: var(--text-muted); }
+    .editor { background: var(--surface-primary); border: 1px solid var(--border-subtle); border-radius: var(--r-xl); padding: 20px; box-shadow: var(--shadow-sm); }
+    h2 { margin: 0 0 12px; font-size: 18px; color: var(--text-primary); }
+    h3 { margin: 18px 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); }
     h3 small { text-transform: none; letter-spacing: 0; font-weight: 400; }
     .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
-    label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #334155; margin-bottom: 10px; flex: 1; min-width: 140px; }
-    label small { color: #94a3b8; }
+    label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text-secondary); margin-bottom: 10px; flex: 1; min-width: 140px; }
+    label small { color: var(--text-placeholder); }
     label.check { flex-direction: row; align-items: center; gap: 8px; flex: none; }
-    input:not([type=checkbox]), select, textarea { padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }
-    .btn-primary { margin-top: 14px; background: #3b82f6; color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; }
-    .btn-primary:disabled { background: #cbd5e1; }
-    .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: #cbd5e1; }
-    .status-dot.published { background: #22c55e; }
-    .status-dot.pending { background: #f59e0b; }
-    .status-dot.inactive { background: #ef4444; }
+    input:not([type=checkbox]), select, textarea { padding: 8px 10px; background: var(--surface-primary); border: 1px solid var(--border-default); border-radius: var(--r-md); color: var(--text-primary); font: inherit; }
+    .btn-primary { margin-top: 14px; background: var(--brand); color: #fff; border: none; padding: 10px 18px; border-radius: var(--r-md); font-weight: 600; cursor: pointer; }
+    .btn-primary:disabled { background: var(--border-strong); }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: var(--border-strong); }
+    .status-dot.published { background: var(--success-color); }
+    .status-dot.pending { background: var(--warning-color); }
+    .status-dot.inactive { background: var(--danger-color); }
   `],
 })
 export class ProvidersPageComponent implements OnInit {

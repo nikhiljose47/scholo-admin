@@ -169,18 +169,18 @@ interface ProgressCard {
   `,
   styles: [`
     :host {
-      --ring-bg: #e2e8f0;
-      --ring-fg: #22c55e;
+      --ring-bg: var(--border-default);
+      --ring-fg: var(--success-color);
     }
 
     .page { max-width: 860px; margin: 0 auto; padding-bottom: 48px; }
 
-    .notice { padding: 12px 16px; border-radius: 10px; font-size: 14px; margin-bottom: 16px; }
-    .notice.warn  { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
-    .notice.error { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; }
+    .notice { padding: 12px 16px; border-radius: var(--r-lg); font-size: 14px; margin-bottom: 16px; }
+    .notice.warn  { background: var(--warning-bg); border: 1px solid color-mix(in srgb, var(--warning-color) 30%, transparent); color: var(--warning-text); }
+    .notice.error { background: var(--danger-bg); border: 1px solid color-mix(in srgb, var(--danger-color) 25%, transparent); color: var(--danger-text); }
 
-    .loading { color: #64748b; font-size: 15px; padding: 48px 0; text-align: center; }
-    .empty { text-align: center; padding: 64px 20px; color: #64748b; }
+    .loading { color: var(--text-muted); font-size: 15px; padding: 48px 0; text-align: center; }
+    .empty { text-align: center; padding: 64px 20px; color: var(--text-muted); }
     .empty span { font-size: 48px; display: block; margin-bottom: 12px; }
     .empty p { font-size: 15px; margin: 0; }
 
@@ -221,8 +221,8 @@ interface ProgressCard {
       bottom: 0;
       width: 56px;
       border: none;
-      background: linear-gradient(to right, transparent, rgba(255,255,255,0.85) 40%, rgba(255,255,255,0.95));
-      color: #475569;
+      background: linear-gradient(to right, transparent, var(--surface-app) 40%, var(--surface-app) 95%);
+      color: var(--text-secondary);
       font-size: 28px;
       line-height: 1;
       cursor: pointer;
@@ -230,21 +230,21 @@ interface ProgressCard {
       align-items: center;
       justify-content: flex-end;
       padding-right: 6px;
-      border-radius: 0 14px 14px 0;
+      border-radius: 0 var(--r-xl) var(--r-xl) 0;
       transition: color 0.15s;
       z-index: 1;
     }
 
-    .scroll-btn:hover { color: #1e293b; }
+    .scroll-btn:hover { color: var(--text-primary); }
 
     .class-card {
       display: flex;
       align-items: center;
       gap: 12px;
       padding: 14px 16px;
-      background: var(--surface, #fff);
-      border: 2px solid var(--border-subtle, #e2e8f0);
-      border-radius: 14px;
+      background: var(--surface-primary);
+      border: 2px solid var(--border-subtle);
+      border-radius: var(--r-xl);
       cursor: pointer;
       text-align: left;
       transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
@@ -256,41 +256,41 @@ interface ProgressCard {
     }
 
     .class-card:hover {
-      border-color: #3b82f6;
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px var(--border-focus-ring);
     }
 
     .class-card.selected {
-      border-color: #3b82f6;
-      background: #eff6ff;
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+      border-color: var(--brand);
+      background: var(--brand-subtle);
+      box-shadow: 0 0 0 3px var(--border-focus-ring);
     }
 
     .class-card-ring { position: relative; width: 44px; height: 44px; flex-shrink: 0; }
     .ring-pct {
       position: absolute; inset: 0;
       display: flex; align-items: center; justify-content: center;
-      font-size: 10px; font-weight: 700; color: #15803d;
+      font-size: 10px; font-weight: 700; color: var(--success-text);
     }
 
     .class-card-info { flex: 1; min-width: 0; overflow: hidden; }
     .class-card-name {
-      font-size: 13px; font-weight: 700; color: #1e293b; line-height: 1.3;
+      font-size: 13px; font-weight: 700; color: var(--text-primary); line-height: 1.3;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
-    .class-card-status { font-size: 12px; color: #64748b; margin-top: 2px; }
-    .warn-text { color: #f59e0b; }
+    .class-card-status { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .warn-text { color: var(--warning-text); }
 
-    .class-card-arrow { font-size: 22px; color: #cbd5e1; line-height: 1; }
-    .class-card.selected .class-card-arrow { color: #3b82f6; }
+    .class-card-arrow { font-size: 22px; color: var(--border-strong); line-height: 1; }
+    .class-card.selected .class-card-arrow { color: var(--brand); }
 
     /* Detail panel */
     .detail-panel {
       margin-top: 24px;
-      background: var(--surface, #fff);
-      border-radius: 16px;
-      border: 1px solid var(--border-subtle, #e2e8f0);
-      box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+      background: var(--surface-primary);
+      border-radius: var(--r-2xl);
+      border: 1px solid var(--border-subtle);
+      box-shadow: var(--shadow-md);
       overflow: hidden;
       animation: panel-in 0.18s ease-out;
     }
@@ -302,7 +302,7 @@ interface ProgressCard {
 
     .detail-header {
       padding: 20px 24px;
-      border-bottom: 1px solid #f1f5f9;
+      border-bottom: 1px solid var(--border-subtle);
       display: flex;
       flex-direction: column;
       gap: 16px;
@@ -315,16 +315,16 @@ interface ProgressCard {
       gap: 12px;
     }
 
-    .detail-class-name { font-size: 20px; font-weight: 700; color: #1e293b; line-height: 1.3; }
-    .detail-center-name { font-size: 13px; color: #64748b; margin-top: 2px; }
+    .detail-class-name { font-size: 20px; font-weight: 700; color: var(--text-primary); line-height: 1.3; }
+    .detail-center-name { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
 
     .close-btn {
       background: none; border: none; cursor: pointer;
-      font-size: 18px; color: #94a3b8; padding: 4px 8px;
-      border-radius: 6px; line-height: 1;
+      font-size: 18px; color: var(--text-placeholder); padding: 4px 8px;
+      border-radius: var(--r-sm); line-height: 1;
       transition: background 0.1s, color 0.1s;
     }
-    .close-btn:hover { background: #f1f5f9; color: #475569; }
+    .close-btn:hover { background: var(--surface-hover); color: var(--text-secondary); }
 
     /* Progress bar */
     .detail-progress-row {
@@ -336,19 +336,19 @@ interface ProgressCard {
     .progress-bar {
       flex: 1;
       height: 8px;
-      background: #e2e8f0;
-      border-radius: 6px;
+      background: var(--border-default);
+      border-radius: var(--r-sm);
       overflow: hidden;
     }
 
     .progress-fill {
       height: 100%;
       background: linear-gradient(90deg, #3b82f6, #22c55e);
-      border-radius: 6px;
+      border-radius: var(--r-sm);
       transition: width 0.4s;
     }
 
-    .progress-label { font-size: 12px; color: #64748b; white-space: nowrap; }
+    .progress-label { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
 
     /* Action buttons */
     .btn-action {
@@ -383,17 +383,17 @@ interface ProgressCard {
       text-align: center;
       font-size: 15px;
       font-weight: 700;
-      color: #15803d;
+      color: var(--success-text);
       padding: 12px;
-      background: #dcfce7;
-      border-radius: 10px;
+      background: var(--success-bg);
+      border-radius: var(--r-lg);
     }
 
     .saved-toast {
       text-align: center;
       font-size: 14px;
       font-weight: 700;
-      color: #15803d;
+      color: var(--success-text);
       animation: fade-in 0.2s ease;
     }
 
@@ -404,7 +404,7 @@ interface ProgressCard {
       padding: 16px 24px 8px;
       font-size: 12px;
       font-weight: 700;
-      color: #94a3b8;
+      color: var(--text-placeholder);
       letter-spacing: 0.06em;
       text-transform: uppercase;
     }
@@ -420,13 +420,13 @@ interface ProgressCard {
       align-items: center;
       gap: 14px;
       padding: 11px 24px;
-      border-bottom: 1px solid #f8fafc;
+      border-bottom: 1px solid var(--border-subtle);
       transition: background 0.1s;
     }
 
     .ch-row:last-child { border-bottom: none; }
     .ch-row.done  { opacity: 0.65; }
-    .ch-row.current { background: #f0fdf4; }
+    .ch-row.current { background: var(--success-bg); }
 
     .ch-dot {
       width: 28px;
@@ -438,24 +438,24 @@ interface ProgressCard {
       font-size: 11px;
       font-weight: 700;
       flex-shrink: 0;
-      background: #e2e8f0;
-      color: #64748b;
+      background: var(--border-default);
+      color: var(--text-muted);
     }
 
-    .ch-row.done    .ch-dot { background: #22c55e; color: #fff; }
-    .ch-row.current .ch-dot { background: #3b82f6; color: #fff; }
+    .ch-row.done    .ch-dot { background: var(--success-color); color: #fff; }
+    .ch-row.current .ch-dot { background: var(--brand); color: #fff; }
 
     .ch-body { flex: 1; min-width: 0; }
-    .ch-name { font-size: 14px; color: #1e293b; line-height: 1.4; }
-    .ch-row.done .ch-name { color: #64748b; }
+    .ch-name { font-size: 14px; color: var(--text-primary); line-height: 1.4; }
+    .ch-row.done .ch-name { color: var(--text-muted); }
 
     .ch-badge {
       display: inline-block;
       font-size: 10px;
       font-weight: 700;
-      color: #1d4ed8;
-      background: #dbeafe;
-      border-radius: 20px;
+      color: var(--brand-text);
+      background: var(--brand-subtle);
+      border-radius: var(--r-full);
       padding: 1px 8px;
       margin-top: 2px;
       letter-spacing: 0.02em;
@@ -464,20 +464,20 @@ interface ProgressCard {
     .btn-set {
       padding: 5px 14px;
       background: none;
-      border: 1.5px solid #cbd5e1;
-      border-radius: 20px;
+      border: 1.5px solid var(--border-strong);
+      border-radius: var(--r-full);
       font-size: 12px;
       font-weight: 600;
-      color: #475569;
+      color: var(--text-secondary);
       cursor: pointer;
       white-space: nowrap;
       transition: border-color 0.12s, color 0.12s, background 0.12s;
     }
 
     .btn-set:not(:disabled):hover {
-      border-color: #3b82f6;
-      color: #1d4ed8;
-      background: #eff6ff;
+      border-color: var(--brand);
+      color: var(--brand-text);
+      background: var(--brand-subtle);
     }
 
     .btn-set:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -485,7 +485,7 @@ interface ProgressCard {
     .no-syllabus {
       padding: 20px 24px;
       font-size: 13px;
-      color: #94a3b8;
+      color: var(--text-placeholder);
       font-style: italic;
     }
   `],

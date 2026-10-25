@@ -192,8 +192,8 @@ import { UserModel } from '../../models/user/user.model';
     .avatar-placeholder {
       width: 100%;
       height: 100%;
-      background: rgba(96, 165, 250, 0.18);
-      color: #93c5fd;
+      background: var(--brand-muted);
+      color: var(--brand-text);
       font-size: 28px;
       font-weight: 700;
       display: flex;
@@ -253,8 +253,8 @@ import { UserModel } from '../../models/user/user.model';
       display: inline-block;
       font-size: 11px;
       font-weight: 600;
-      color: var(--brand);
-      background: rgba(96, 165, 250, 0.12);
+      color: var(--brand-text);
+      background: var(--brand-muted);
       border-radius: 20px;
       padding: 2px 10px;
       text-transform: capitalize;
@@ -391,7 +391,7 @@ import { UserModel } from '../../models/user/user.model';
       align-items: center;
       gap: 5px;
       font-size: 12px;
-      color: var(--warning, #f59e0b);
+      color: var(--warning-color);
       margin-right: auto;
     }
 
@@ -419,7 +419,7 @@ import { UserModel } from '../../models/user/user.model';
 
     .error-msg {
       font-size: 12px;
-      color: var(--danger, #ef4444);
+      color: var(--danger-color);
       text-align: center;
     }
   `],

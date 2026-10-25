@@ -90,23 +90,24 @@ import { AdminAuthService } from '../../../core/services/auth/admin-auth.service
   styles: [`
     .page { max-width: 800px; margin: 0 auto; }
 
-    .back-link { color: #3b82f6; text-decoration: none; font-size: 14px; display: block; margin-bottom: 12px; }
+    .back-link { color: var(--brand); text-decoration: none; font-size: 14px; display: block; margin-bottom: 12px; }
 
-    h1 { margin: 0 0 24px; font-size: 22px; font-weight: 700; color: #1e293b; }
+    h1 { margin: 0 0 24px; font-size: 22px; font-weight: 700; color: var(--text-primary); }
 
     .form-card {
-      background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      background: var(--surface-primary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--r-xl);
+      box-shadow: var(--shadow-sm);
       overflow: hidden;
     }
 
     .section {
       padding: 24px;
-      border-bottom: 1px solid #f1f5f9;
+      border-bottom: 1px solid var(--border-subtle);
     }
 
-    h3 { margin: 0 0 16px; font-size: 15px; font-weight: 600; color: #1e293b; }
+    h3 { margin: 0 0 16px; font-size: 15px; font-weight: 600; color: var(--text-primary); }
 
     .fields {
       display: grid;
@@ -117,31 +118,33 @@ import { AdminAuthService } from '../../../core/services/auth/admin-auth.service
     .field { display: flex; flex-direction: column; gap: 5px; }
     .field.full { grid-column: 1 / -1; }
 
-    label { font-size: 13px; font-weight: 600; color: #374151; }
+    label { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
 
     input, textarea, select {
       padding: 10px 12px;
-      border: 1px solid #d1d5db;
-      border-radius: 8px;
+      background: var(--surface-primary);
+      border: 1px solid var(--border-default);
+      border-radius: var(--r-md);
+      color: var(--text-primary);
       font-size: 14px;
       outline: none;
       font-family: inherit;
     }
 
     input:focus, textarea:focus, select:focus {
-      border-color: #3b82f6;
-      box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px var(--border-focus-ring);
     }
 
-    small { color: #94a3b8; font-size: 12px; }
+    small { color: var(--text-placeholder); font-size: 12px; }
 
     .error {
       margin: 0 24px;
       padding: 10px 12px;
-      background: #fef2f2;
-      border: 1px solid #fecaca;
-      color: #dc2626;
-      border-radius: 8px;
+      background: var(--danger-bg);
+      border: 1px solid var(--border-error-ring);
+      color: var(--danger-text);
+      border-radius: var(--r-md);
       font-size: 13px;
     }
 
@@ -154,19 +157,19 @@ import { AdminAuthService } from '../../../core/services/auth/admin-auth.service
 
     .btn-cancel {
       padding: 10px 18px;
-      border: 1px solid #d1d5db;
-      border-radius: 8px;
+      border: 1px solid var(--border-default);
+      border-radius: var(--r-md);
       text-decoration: none;
-      color: #374151;
+      color: var(--text-secondary);
       font-size: 14px;
     }
 
     .btn-submit {
       padding: 10px 22px;
-      background: #3b82f6;
+      background: var(--brand);
       color: #fff;
       border: none;
-      border-radius: 8px;
+      border-radius: var(--r-md);
       font-size: 14px;
       font-weight: 600;
       cursor: pointer;

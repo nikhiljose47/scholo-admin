@@ -100,7 +100,7 @@ function weekStartKey(ms: number): string {
       display: flex; align-items: center; gap: 16px; padding: 18px 20px;
       background: var(--surface-primary); border: 1px solid var(--border-default); border-radius: 14px;
     }
-    .streak-num { font-size: 40px; font-weight: 800; color: #3b82f6; line-height: 1; min-width: 56px; text-align: center; }
+    .streak-num { font-size: 40px; font-weight: 800; color: var(--brand); line-height: 1; min-width: 56px; text-align: center; }
     .streak-num.zero { color: var(--text-muted); }
     .streak-info { display: flex; flex-direction: column; gap: 2px; }
     .streak-title { font-size: 16px; font-weight: 600; color: var(--text-primary); }

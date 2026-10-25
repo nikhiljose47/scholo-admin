@@ -72,38 +72,40 @@ import { BatchesService } from '../batches.service';
   `,
   styles: [`
     .page { max-width: 700px; margin: 0 auto; }
-    .back-link { color: #3b82f6; text-decoration: none; font-size: 14px; display: block; margin-bottom: 12px; }
-    h1 { margin: 0 0 24px; font-size: 22px; font-weight: 700; color: #1e293b; }
+    .back-link { color: var(--brand); text-decoration: none; font-size: 14px; display: block; margin-bottom: 12px; }
+    h1 { margin: 0 0 24px; font-size: 22px; font-weight: 700; color: var(--text-primary); }
 
-    .form-card { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); overflow: hidden; }
-    .section { padding: 24px; border-bottom: 1px solid #f1f5f9; }
-    h3 { margin: 0 0 16px; font-size: 15px; font-weight: 600; color: #1e293b; }
+    .form-card { background: var(--surface-primary); border-radius: 12px; box-shadow: var(--shadow-sm); overflow: hidden; }
+    .section { padding: 24px; border-bottom: 1px solid var(--border-subtle); }
+    h3 { margin: 0 0 16px; font-size: 15px; font-weight: 600; color: var(--text-primary); }
     .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .field { display: flex; flex-direction: column; gap: 5px; }
 
-    label { font-size: 13px; font-weight: 600; color: #374151; }
+    label { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
 
     input, select {
       padding: 10px 12px;
-      border: 1px solid #d1d5db;
+      background: var(--surface-primary);
+      color: var(--text-primary);
+      border: 1px solid var(--border-default);
       border-radius: 8px;
       font-size: 14px;
       outline: none;
     }
 
     input:focus, select:focus {
-      border-color: #3b82f6;
-      box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px var(--border-focus-ring);
     }
 
-    small { color: #94a3b8; font-size: 12px; }
+    small { color: var(--text-placeholder); font-size: 12px; }
 
     .error {
       margin: 0 24px;
       padding: 10px 12px;
-      background: #fef2f2;
-      border: 1px solid #fecaca;
-      color: #dc2626;
+      background: var(--danger-bg);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      color: var(--danger-text);
       border-radius: 8px;
       font-size: 13px;
     }
@@ -112,17 +114,17 @@ import { BatchesService } from '../batches.service';
 
     .btn-cancel {
       padding: 10px 18px;
-      border: 1px solid #d1d5db;
+      border: 1px solid var(--border-default);
       border-radius: 8px;
       text-decoration: none;
-      color: #374151;
+      color: var(--text-secondary);
       font-size: 14px;
     }
 
     .btn-submit {
       padding: 10px 22px;
-      background: #3b82f6;
-      color: #fff;
+      background: var(--brand);
+      color: var(--text-inverse);
       border: none;
       border-radius: 8px;
       font-size: 14px;

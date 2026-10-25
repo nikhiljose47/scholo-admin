@@ -38,37 +38,39 @@ import { UserModel } from '../../models/user/user.model';
   styles: [`
     .page { max-width: 900px; margin: 0 auto; }
     .page-header { margin-bottom: 24px; }
-    h1 { margin: 0; font-size: 22px; font-weight: 700; color: #1e293b; }
-    p { margin: 4px 0 0; color: #64748b; font-size: 14px; }
-    .loading { color: #64748b; padding: 20px; }
-    .empty { text-align: center; padding: 60px; color: #64748b; }
+    h1 { margin: 0; font-size: 22px; font-weight: 700; color: var(--text-primary); }
+    p { margin: 4px 0 0; color: var(--text-muted); font-size: 14px; }
+    .loading { color: var(--text-muted); padding: 20px; }
+    .empty { text-align: center; padding: 60px; color: var(--text-muted); }
     .empty span { font-size: 48px; display: block; margin-bottom: 12px; }
     .list { display: flex; flex-direction: column; gap: 10px; }
     .student-card {
-      background: #fff;
-      border-radius: 10px;
+      background: var(--surface-primary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--r-lg);
       padding: 16px;
       display: flex;
       align-items: center;
       gap: 14px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      box-shadow: var(--shadow-sm);
     }
     .avatar {
       width: 44px;
       height: 44px;
-      background: #10b981;
+      background: var(--success-color);
       color: #fff;
-      border-radius: 12px;
+      border-radius: var(--r-xl);
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: 700;
       font-size: 14px;
+      flex-shrink: 0;
     }
     .info { flex: 1; }
-    .name { font-weight: 600; color: #1e293b; font-size: 15px; }
-    .email { color: #64748b; font-size: 13px; }
-    .enrolled-count { font-size: 12px; color: #64748b; }
+    .name { font-weight: 600; color: var(--text-primary); font-size: 15px; }
+    .email { color: var(--text-muted); font-size: 13px; }
+    .enrolled-count { font-size: 12px; color: var(--text-muted); }
   `],
 })
 export class StudentsComponent implements OnInit {

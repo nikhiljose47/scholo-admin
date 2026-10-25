@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <style>
+    .mark { fill: #2563eb; }
+    @media (prefers-color-scheme: dark) {
+      .mark { fill: #3b82f6; }
+    }
+  </style>
+  <rect class="mark" x="0" y="0" width="32" height="32" rx="7"/>
+  <rect fill="#fff" x="8.1" y="16.6" width="4.5" height="6.5" rx="1.8"/>
+  <rect fill="#fff" x="13.8" y="12" width="4.5" height="11.1" rx="1.8"/>
+  <rect fill="#fff" x="19.5" y="8" width="4.5" height="15.1" rx="1.8"/>
+</svg>

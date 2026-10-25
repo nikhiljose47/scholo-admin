@@ -120,12 +120,12 @@ type Tab = 'plan' | 'enrollments' | 'progress' | 'audit';
   styles: [`
     .page { max-width: 1000px; margin: 0 auto; }
 
-    .back-link { color: #3b82f6; text-decoration: none; font-size: 14px; display: block; margin-bottom: 12px; }
+    .back-link { color: var(--brand); text-decoration: none; font-size: 14px; display: block; margin-bottom: 12px; }
 
     .header-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
 
-    h1 { margin: 0; font-size: 22px; font-weight: 700; color: #1e293b; }
-    p { margin: 4px 0 0; color: #64748b; font-size: 14px; }
+    h1 { margin: 0; font-size: 22px; font-weight: 700; color: var(--text-primary); }
+    p { margin: 4px 0 0; color: var(--text-muted); font-size: 14px; }
 
     .status-badge {
       padding: 3px 10px;
@@ -137,28 +137,28 @@ type Tab = 'plan' | 'enrollments' | 'progress' | 'audit';
 
     .status-badge.large { font-size: 13px; padding: 6px 14px; }
 
-    .status-badge.active { background: #d1fae5; color: #065f46; }
-    .status-badge.draft { background: #fef3c7; color: #92400e; }
-    .status-badge.completed { background: #eff6ff; color: #1d4ed8; }
-    .status-badge.archived { background: #f1f5f9; color: #475569; }
+    .status-badge.active { background: var(--success-bg); color: var(--success-text); }
+    .status-badge.draft { background: var(--warning-bg); color: var(--warning-text); }
+    .status-badge.completed { background: var(--info-bg); color: var(--info-text); }
+    .status-badge.archived { background: var(--surface-secondary); color: var(--text-muted); }
 
     .progress-bar-wrap {
-      background: #fff;
+      background: var(--surface-primary);
       border-radius: 12px;
       padding: 16px 20px;
       margin-bottom: 20px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      box-shadow: var(--shadow-sm);
     }
 
-    .progress-label { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; color: #374151; }
-    .progress-pct { font-weight: 700; color: #3b82f6; }
+    .progress-label { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; color: var(--text-secondary); }
+    .progress-pct { font-weight: 700; color: var(--brand); }
 
-    .progress-track { height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
-    .progress-fill { height: 100%; background: #3b82f6; transition: width 0.3s; }
+    .progress-track { height: 8px; background: var(--border-default); border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
+    .progress-fill { height: 100%; background: var(--brand); transition: width 0.3s; }
 
-    .progress-counts { font-size: 12px; color: #94a3b8; }
+    .progress-counts { font-size: 12px; color: var(--text-placeholder); }
 
-    .tabs { display: flex; gap: 4px; border-bottom: 2px solid #e2e8f0; margin-bottom: 24px; }
+    .tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--border-default); margin-bottom: 24px; }
 
     .tab-btn {
       padding: 10px 18px;
@@ -166,35 +166,35 @@ type Tab = 'plan' | 'enrollments' | 'progress' | 'audit';
       border: none;
       cursor: pointer;
       font-size: 14px;
-      color: #64748b;
+      color: var(--text-muted);
       border-bottom: 2px solid transparent;
       margin-bottom: -2px;
     }
 
-    .tab-btn.active { color: #3b82f6; border-bottom-color: #3b82f6; font-weight: 600; }
+    .tab-btn.active { color: var(--brand); border-bottom-color: var(--brand); font-weight: 600; }
 
-    .loading { color: #64748b; padding: 20px; }
+    .loading { color: var(--text-muted); padding: 20px; }
 
     .chapters-list { display: flex; flex-direction: column; gap: 16px; }
 
     .chapter-block {
-      background: #fff;
+      background: var(--surface-primary);
       border-radius: 10px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      box-shadow: var(--shadow-xs);
       overflow: hidden;
     }
 
     .chapter-header {
-      background: #f8fafc;
+      background: var(--surface-secondary);
       padding: 12px 16px;
       display: flex;
       align-items: center;
       gap: 10px;
-      border-bottom: 1px solid #e2e8f0;
+      border-bottom: 1px solid var(--border-default);
     }
 
-    .chapter-title { font-weight: 600; font-size: 14px; color: #1e293b; }
-    .chapter-code { font-size: 11px; color: #94a3b8; background: #e2e8f0; padding: 2px 8px; border-radius: 4px; }
+    .chapter-title { font-weight: 600; font-size: 14px; color: var(--text-primary); }
+    .chapter-code { font-size: 11px; color: var(--text-placeholder); background: var(--border-default); padding: 2px 8px; border-radius: 4px; }
 
     .items-list { padding: 4px 0; }
 
@@ -203,14 +203,14 @@ type Tab = 'plan' | 'enrollments' | 'progress' | 'audit';
       justify-content: space-between;
       align-items: center;
       padding: 10px 16px;
-      border-bottom: 1px solid #f8fafc;
+      border-bottom: 1px solid var(--border-subtle);
     }
 
     .plan-item:last-child { border-bottom: none; }
 
     .item-info { display: flex; flex-direction: column; gap: 2px; }
-    .item-title { font-size: 14px; color: #1e293b; }
-    .item-code { font-size: 11px; color: #94a3b8; }
+    .item-title { font-size: 14px; color: var(--text-primary); }
+    .item-code { font-size: 11px; color: var(--text-placeholder); }
 
     .item-controls { display: flex; align-items: center; gap: 10px; }
 
@@ -221,18 +221,18 @@ type Tab = 'plan' | 'enrollments' | 'progress' | 'audit';
       font-weight: 600;
     }
 
-    .progress-chip.not_started { background: #f1f5f9; color: #64748b; }
-    .progress-chip.in_progress { background: #fef3c7; color: #92400e; }
-    .progress-chip.completed { background: #d1fae5; color: #065f46; }
+    .progress-chip.not_started { background: var(--surface-secondary); color: var(--text-muted); }
+    .progress-chip.in_progress { background: var(--warning-bg); color: var(--warning-text); }
+    .progress-chip.completed { background: var(--success-bg); color: var(--success-text); }
 
     .status-buttons { display: flex; gap: 4px; }
 
     .btn-status {
       width: 28px;
       height: 28px;
-      border: 1px solid #d1d5db;
+      border: 1px solid var(--border-default);
       border-radius: 6px;
-      background: #fff;
+      background: var(--surface-primary);
       cursor: pointer;
       font-size: 14px;
       display: flex;
@@ -241,14 +241,14 @@ type Tab = 'plan' | 'enrollments' | 'progress' | 'audit';
     }
 
     .btn-status:disabled { opacity: 0.4; cursor: not-allowed; }
-    .btn-status.in-progress:not(:disabled):hover { background: #fef3c7; }
-    .btn-status.completed:not(:disabled):hover { background: #d1fae5; }
+    .btn-status.in-progress:not(:disabled):hover { background: var(--warning-bg); }
+    .btn-status.completed:not(:disabled):hover { background: var(--success-bg); }
 
-    .empty { padding: 40px; text-align: center; color: #64748b; }
-    .empty-page { padding: 80px; text-align: center; color: #64748b; }
-    .muted { color: #94a3b8; font-size: 13px; padding: 12px 0; }
+    .empty { padding: 40px; text-align: center; color: var(--text-muted); }
+    .empty-page { padding: 80px; text-align: center; color: var(--text-muted); }
+    .muted { color: var(--text-placeholder); font-size: 13px; padding: 12px 0; }
 
-    .enrollments-header { font-size: 14px; color: #374151; margin-bottom: 12px; }
+    .enrollments-header { font-size: 14px; color: var(--text-secondary); margin-bottom: 12px; }
   `],
 })
 export class BatchDetailComponent implements OnInit {

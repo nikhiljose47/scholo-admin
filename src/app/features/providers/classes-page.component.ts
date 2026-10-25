@@ -55,19 +55,19 @@ type CatalogEntry = SyllabusIndexEntry & { enabled: boolean };
   `,
   styles: [`
     .page { max-width: 900px; margin: 0 auto; }
-    h1 { margin: 0; font-size: 22px; color: #1e293b; }
-    .page-header { margin-bottom: 18px; }
-    .page-header p, .muted { color: #64748b; font-size: 14px; margin: 4px 0 0; }
-    .msg { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; }
-    .err { background: #fef2f2; color: #b91c1c; }
-    .card { background: #fff; border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+    h1 { margin: 0; font-size: 22px; color: var(--text-primary); }
+    .page-header { margin-bottom: 20px; }
+    .page-header p, .muted { color: var(--text-muted); font-size: 14px; margin: 4px 0 0; }
+    .msg { padding: 10px 14px; border-radius: var(--r-md); font-size: 13px; margin-bottom: 12px; }
+    .err { background: var(--danger-bg); color: var(--danger-text); }
+    .card { background: var(--surface-primary); border: 1px solid var(--border-subtle); border-radius: var(--r-lg); padding: 14px 16px; margin-bottom: 10px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; box-shadow: var(--shadow-sm); }
     .info { flex: 1; min-width: 160px; display: flex; flex-direction: column; gap: 2px; }
-    .doc-id { color: #94a3b8; font-size: 11px; font-family: monospace; }
-    label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #64748b; }
-    select { padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; min-width: 200px; }
-    .state { font-size: 12px; color: #64748b; }
-    .state.ok { color: #15803d; }
-    .link { color: #3b82f6; font-size: 13px; text-decoration: none; font-weight: 600; }
+    .doc-id { color: var(--text-placeholder); font-size: 11px; font-family: var(--font-mono); }
+    label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-muted); }
+    select { padding: 8px 10px; background: var(--surface-primary); border: 1px solid var(--border-default); border-radius: var(--r-md); color: var(--text-primary); font: inherit; min-width: 200px; }
+    .state { font-size: 12px; color: var(--text-muted); }
+    .state.ok { color: var(--success-color); }
+    .link { color: var(--text-link); font-size: 13px; text-decoration: none; font-weight: 600; }
   `],
 })
 export class ClassesPageComponent implements OnInit {
