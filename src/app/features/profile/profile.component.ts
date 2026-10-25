@@ -1,6 +1,7 @@
 import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { deleteField } from '@angular/fire/firestore';
 import { AdminAuthService } from '../../core/services/auth/admin-auth.service';
 import { FirestoreService } from '../../core/services/fire/firestore.service';
 import { UploadService } from '../../core/services/storage/upload.service';
@@ -523,18 +524,24 @@ export class ProfileComponent implements OnInit {
     this.saving.set(true);
     this.saveMsg.set(null);
 
-    const patch: Partial<UserModel> = {
+    const patch = {
       name:  this.form.name.trim(),
-      phone: this.form.phone.trim() || undefined,
-      upiId: this.form.upiId.trim() || undefined,
-      bio:   this.form.bio.trim() || undefined,
+      phone: this.form.phone.trim() || deleteField(),
+      upiId: this.form.upiId.trim() || deleteField(),
+      bio:   this.form.bio.trim() || deleteField(),
     };
 
-    const res = await this.fs.update<UserModel>(`users/${uid}`, patch);
+    const res = await this.fs.update<UserModel>(`users/${uid}`, patch as Partial<UserModel>);
     this.saving.set(false);
 
     if (res.ok) {
-      this.auth.userProfile.update(p => p ? { ...p, ...patch } : p);
+      this.auth.userProfile.update(p => p ? {
+        ...p,
+        name:  this.form.name.trim(),
+        phone: this.form.phone.trim() || undefined,
+        upiId: this.form.upiId.trim() || undefined,
+        bio:   this.form.bio.trim() || undefined,
+      } : p);
       this.syncSaved();
       this.isDirty.set(false);
       this.saveOk.set(true);
