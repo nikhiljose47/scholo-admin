@@ -150,36 +150,54 @@ interface ImageItem {
         <!-- Date & Time -->
         <div class="section">
           <h3>Date & Time <span class="section-hint">(IST)</span></h3>
-          <div class="fields">
+          <div class="dt-grid">
+            <!-- Date -->
             <div class="field">
               <label>Date *</label>
-              <input formControlName="dateStr" type="date" />
+              <input formControlName="dateStr" type="date" class="dt-input" />
             </div>
+
+            <!-- Duration -->
             <div class="field">
+              <label>Duration *</label>
+              <select formControlName="durationMinutes" class="dt-input">
+                <option *ngFor="let d of durationOptions" [value]="d">{{ d }} min</option>
+              </select>
+            </div>
+
+            <!-- Time picker — full width row -->
+            <div class="field dt-full">
               <label>Start time *</label>
               <div class="time-picker">
-                <select [value]="timeHour()" (change)="updateTimePart('hour', $any($event.target).value)">
-                  <option value="">Hr</option>
-                  <option *ngFor="let h of hours" [value]="h">{{ h }}</option>
-                </select>
-                <select [value]="timeMinute()" (change)="updateTimePart('minute', $any($event.target).value)">
-                  <option *ngFor="let m of minutes" [value]="m">{{ m }}</option>
-                </select>
+                <div class="tp-slot">
+                  <span class="tp-slot-label">Hr</span>
+                  <select [value]="timeHour()" (change)="updateTimePart('hour', $any($event.target).value)" class="tp-select">
+                    <option value="">—</option>
+                    <option *ngFor="let h of hours" [value]="h">{{ h }}</option>
+                  </select>
+                </div>
+                <span class="tp-colon">:</span>
+                <div class="tp-slot">
+                  <span class="tp-slot-label">Min</span>
+                  <select [value]="timeMinute()" (change)="updateTimePart('minute', $any($event.target).value)" class="tp-select">
+                    <option *ngFor="let m of minutes" [value]="m">{{ m }}</option>
+                  </select>
+                </div>
                 <div class="period-switch">
                   <button type="button" [class.active]="timePeriod() === 'AM'" (click)="updateTimePart('period', 'AM')">AM</button>
                   <button type="button" [class.active]="timePeriod() === 'PM'" (click)="updateTimePart('period', 'PM')">PM</button>
                 </div>
               </div>
             </div>
-            <div class="field">
-              <label>Duration *</label>
-              <select formControlName="durationMinutes">
-                <option *ngFor="let d of durationOptions" [value]="d">{{ d }} min</option>
-              </select>
-            </div>
           </div>
-          <div class="end-time-preview" *ngIf="endTimePreview()">
-            Ends at <strong>{{ endTimePreview() }} IST</strong>
+
+          <div class="time-range-preview" *ngIf="endTimePreview()">
+            <span class="trp-icon">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </span>
+            <span class="trp-value">{{ endTimePreview() }}</span>
           </div>
         </div>
 
@@ -287,7 +305,27 @@ interface ImageItem {
 
     .loading-hint { color: var(--text-placeholder); font-size: 12px; display: block; margin-top: 8px; }
 
-    .end-time-preview { margin-top: 8px; font-size: 12px; color: var(--text-muted); }
+    /* Date/time grid */
+    .dt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .dt-full { grid-column: 1 / -1; }
+    .dt-input { width: 100%; }
+
+    /* Time picker */
+    .time-picker { display: flex; align-items: flex-end; gap: 8px; }
+    .tp-slot { display: flex; flex-direction: column; gap: 4px; }
+    .tp-slot-label { font-size: 11px; font-weight: 500; color: var(--text-placeholder); letter-spacing: 0.04em; }
+    .tp-select { width: 72px; text-align: center; }
+    .tp-colon { font-size: 18px; font-weight: 700; color: var(--text-muted); padding-bottom: 9px; }
+
+    /* Time range preview */
+    .time-range-preview {
+      display: inline-flex; align-items: center; gap: 6px;
+      margin-top: 12px; padding: 6px 12px;
+      background: var(--surface-secondary); border-radius: 20px;
+      font-size: 12px; font-weight: 600; color: var(--text-secondary);
+    }
+    .trp-icon { color: var(--text-muted); display: flex; align-items: center; }
+    .trp-value { color: var(--text-primary); }
 
     .field-error { color: var(--danger-text, #dc2626); font-size: 12px; }
 
@@ -338,10 +376,9 @@ interface ImageItem {
     .bar { height: 5px; background: var(--border-default); border-radius: 3px; overflow: hidden; margin-bottom: 4px; }
     .fill { height: 100%; background: var(--brand); transition: width .15s; }
 
-    /* Time picker */
-    .time-picker { display: grid; grid-template-columns: minmax(68px, .8fr) minmax(60px, .7fr) auto; gap: 8px; align-items: center; }
-    .period-switch { display: flex; border: 1px solid var(--border-default); border-radius: 8px; overflow: hidden; background: var(--surface-secondary); }
-    .period-switch button { flex: 1; padding: 8px 10px; border: none; background: transparent; font-size: 12px; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: background .12s, color .12s; font-family: inherit; }
+    /* AM/PM switch */
+    .period-switch { display: flex; border: 1px solid var(--border-default); border-radius: 8px; overflow: hidden; background: var(--surface-secondary); align-self: flex-end; }
+    .period-switch button { flex: 1; padding: 9px 14px; border: none; background: transparent; font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: background .12s, color .12s; font-family: inherit; white-space: nowrap; }
     .period-switch button.active { background: var(--text-primary); color: var(--surface-primary); }
 
     /* Confirm modal */
@@ -522,12 +559,20 @@ export class ScheduleFormComponent implements OnInit {
     if (!dateStr || !timeStr) return null;
     try {
       const [h, m] = timeStr.split(':').map(Number);
-      const totalMin = h * 60 + m + (durationMinutes || 0);
+      const dur = Number(durationMinutes) || 0;   // coerce — select values are strings
+
+      const startPeriod = h >= 12 ? 'PM' : 'AM';
+      const startH12 = h % 12 || 12;
+      const startStr = `${startH12}:${String(m).padStart(2, '0')} ${startPeriod}`;
+
+      const totalMin = h * 60 + m + dur;
       const endH24 = Math.floor(totalMin / 60) % 24;
       const endM = totalMin % 60;
-      const period = endH24 >= 12 ? 'PM' : 'AM';
+      const endPeriod = endH24 >= 12 ? 'PM' : 'AM';
       const endH12 = endH24 % 12 || 12;
-      return `${endH12}:${String(endM).padStart(2, '0')} ${period}`;
+      const endStr = `${endH12}:${String(endM).padStart(2, '0')} ${endPeriod}`;
+
+      return `${startStr} → ${endStr} IST`;
     } catch { return null; }
   }
 
