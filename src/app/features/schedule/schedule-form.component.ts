@@ -104,7 +104,25 @@ interface ImageItem {
             </div>
             <div class="field">
               <label>Start time *</label>
-              <input formControlName="timeStr" type="time" />
+              <div class="time-picker">
+                <select [value]="timeHour()"
+                        (change)="updateTimePart('hour', $any($event.target).value)">
+                  <option value="">Hr</option>
+                  <option *ngFor="let h of hours" [value]="h">{{ h }}</option>
+                </select>
+                <select [value]="timeMinute()"
+                        (change)="updateTimePart('minute', $any($event.target).value)">
+                  <option *ngFor="let m of minutes" [value]="m">{{ m }}</option>
+                </select>
+                <div class="period-switch">
+                  <button type="button"
+                          [class.active]="timePeriod() === 'AM'"
+                          (click)="updateTimePart('period', 'AM')">AM</button>
+                  <button type="button"
+                          [class.active]="timePeriod() === 'PM'"
+                          (click)="updateTimePart('period', 'PM')">PM</button>
+                </div>
+              </div>
             </div>
             <div class="field">
               <label>Duration *</label>
@@ -265,6 +283,39 @@ interface ImageItem {
     .bar { height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; margin-bottom: 4px; }
     .fill { height: 100%; background: #3b82f6; transition: width .15s; }
     .error.inline { margin: 12px 0 0; }
+
+    /* Time picker */
+    .time-picker {
+      display: grid;
+      grid-template-columns: minmax(72px, .8fr) minmax(64px, .7fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .period-switch {
+      display: flex;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .period-switch button {
+      flex: 1;
+      padding: 9px 12px;
+      border: none;
+      background: transparent;
+      font-size: 13px;
+      font-weight: 600;
+      color: #6b7280;
+      cursor: pointer;
+      transition: background 0.12s, color 0.12s;
+    }
+
+    .period-switch button.active {
+      background: #111827;
+      color: #fff;
+    }
   `],
 })
 export class ScheduleFormComponent implements OnInit {
@@ -294,6 +345,13 @@ export class ScheduleFormComponent implements OnInit {
 
   durationOptions = DURATION_OPTIONS;
 
+  // Time picker state (12h display → 24h form value)
+  readonly hours = ['1','2','3','4','5','6','7','8','9','10','11','12'];
+  readonly minutes = ['00','15','30','45'];
+  timeHour = signal('');
+  timeMinute = signal('00');
+  timePeriod = signal<'AM' | 'PM'>('AM');
+
   // Live-class images
   readonly maxImages = MAX_LIVE_IMAGES;
   images = signal<ImageItem[]>([]);
@@ -321,6 +379,34 @@ export class ScheduleFormComponent implements OnInit {
     teacherName: [''],
     meetLink: ['', [Validators.required, Validators.pattern(/^https?:\/\/.+/)]],
   });
+
+  updateTimePart(part: 'hour' | 'minute' | 'period', value: string) {
+    if (part === 'hour')   this.timeHour.set(value);
+    if (part === 'minute') this.timeMinute.set(value);
+    if (part === 'period') this.timePeriod.set(value as 'AM' | 'PM');
+    this.syncTimeToForm();
+  }
+
+  private syncTimeToForm() {
+    const h = parseInt(this.timeHour(), 10);
+    if (!h) return;
+    const m = this.timeMinute();
+    let hour24 = h % 12;
+    if (this.timePeriod() === 'PM') hour24 += 12;
+    this.form.patchValue({ timeStr: `${String(hour24).padStart(2, '0')}:${m}` });
+  }
+
+  private setTimeFromStr(timeStr: string) {
+    const [hStr, mStr] = timeStr.split(':');
+    let h24 = parseInt(hStr, 10);
+    const period: 'AM' | 'PM' = h24 >= 12 ? 'PM' : 'AM';
+    const h12 = h24 % 12 || 12;
+    const mNum = parseInt(mStr, 10);
+    const snapped = [0, 15, 30, 45].reduce((p, c) => Math.abs(c - mNum) < Math.abs(p - mNum) ? c : p, 0);
+    this.timeHour.set(String(h12));
+    this.timeMinute.set(String(snapped).padStart(2, '0'));
+    this.timePeriod.set(period);
+  }
 
   endTimePreview() {
     const { dateStr, timeStr, durationMinutes } = this.form.getRawValue();
@@ -355,12 +441,14 @@ export class ScheduleFormComponent implements OnInit {
         const urls = (m.liveImages ?? []).slice(0, MAX_LIVE_IMAGES);
         this.images.set(urls.map((url, i) => ({ url, slot: slotFromUrl(url) ?? i + 1, preview: url })));
         this.originalSlots = this.images().map(i => i.slot!);
+        const istTime = toISTTimeStr(m.date);
         this.form.patchValue({
           meetLink: m.meetLink,
           dateStr: toISTDateStr(m.date),
-          timeStr: toISTTimeStr(m.date),
+          timeStr: istTime,
           durationMinutes: m.duration,
         });
+        this.setTimeFromStr(istTime);
 
         // Load just enough syllabus to populate the chapter dropdown for this session's class/subject.
         this.syllabusLoading.set(true);
