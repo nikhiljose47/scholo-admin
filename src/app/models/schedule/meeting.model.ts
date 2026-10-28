@@ -28,6 +28,8 @@ export interface Meeting {
   /** 1-4 temporary thumbnail URLs (Storage live-class/{id}/n.webp); absent on legacy docs. */
   liveImages?: string[];
   attendance: string[];  // studentUids; managed by Worker RSVP
+  /** Private teacher notes saved on session submit. */
+  feedback?: string;
 }
 
 export type SessionState = 'live' | 'upcoming' | 'past';
