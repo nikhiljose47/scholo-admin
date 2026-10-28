@@ -336,6 +336,7 @@ export class ShellComponent {
     { label: 'Dashboard',       icon: 'dashboard',    path: '/dashboard' },
     { label: 'Centers',         icon: 'buildings',    path: '/centers',      adminOnly: true },
     { label: 'Schedule',        icon: 'calendar',     path: '/schedule' },
+    { label: 'Tutor Requests',  icon: 'bell',         path: '/tutor-requests' },
     { label: 'Class Progress',  icon: 'check',        path: '/progress' },
     { label: 'Syllabus',        icon: 'template',     path: '/syllabus' },
     { label: 'Puzzles',         icon: 'search',       path: '/puzzles' },

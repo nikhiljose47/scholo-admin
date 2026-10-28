@@ -28,6 +28,10 @@ const PATHS: Record<string, string> = {
   'currency-rupee':   `<path d="M6 4h8M6 9h8M6 4c0 3 3 5 5 5M6 9c0 4 4 7 9 7"/>`,
   template:           `<rect x="3" y="3" width="14" height="14" rx="2"/><path d="M3 8h14M8 3v14"/>`,
   selector:           `<path d="M10 3v14M3 10h14M5.5 5.5l9 9M14.5 5.5l-9 9"/>`,
+  bell:               `<path d="M5 8a5 5 0 0 1 10 0v4l1.5 2.5h-13L5 12V8z"/><path d="M8.5 17a1.5 1.5 0 0 0 3 0"/>`,
+  video:              `<rect x="2" y="5" width="11" height="10" rx="2"/><path d="m13 9 5-3v8l-5-3z"/>`,
+  trash:              `<path d="M4 6h12M8 6V4h4v2m-7 0 .7 10.2a2 2 0 0 0 2 1.8h4.6a2 2 0 0 0 2-1.8L15 6"/>`,
+  users:              `<circle cx="7" cy="7" r="3"/><path d="M1.5 17a5.5 5.5 0 0 1 11 0"/><circle cx="14.5" cy="7.5" r="2.5"/><path d="M13 11.5a5 5 0 0 1 5.5 5.5"/>`,
 };
 
 @Component({

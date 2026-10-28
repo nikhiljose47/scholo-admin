@@ -92,6 +92,11 @@ export const routes: Routes = [
         ],
       },
       {
+        path: 'tutor-requests',
+        loadComponent: () =>
+          import('./features/tutor-requests/tutor-requests.component').then(m => m.TutorRequestsComponent),
+      },
+      {
         path: 'progress',
         loadComponent: () =>
           import('./features/progress/class-progress.component').then(m => m.ClassProgressComponent),
