@@ -60,12 +60,6 @@ import { SessionImportRow, StudentSessionResult, RosterEntry } from '../../model
       <ng-container *ngIf="auth.isTeacher()">
         <div class="strip-wrap">
           <div class="meeting-strip">
-            <!-- New session card -->
-            <a routerLink="/schedule/new" class="strip-card strip-new">
-              <sc-icon name="plus" [size]="22" [stroke]="1.5"></sc-icon>
-              <span>Schedule<br>Class</span>
-            </a>
-
             <div *ngIf="loading()" class="strip-card strip-loading">Loading…</div>
 
             <!-- Meeting cards -->
@@ -338,17 +332,6 @@ import { SessionImportRow, StudentSessionResult, RosterEntry } from '../../model
     }
 
     .strip-card.strip-completed { opacity: 0.65; }
-
-    .strip-new {
-      align-items: center;
-      justify-content: center;
-      color: var(--brand);
-      font-size: 13px;
-      font-weight: 600;
-      gap: 6px;
-      text-align: center;
-      width: 100px;
-    }
 
     .strip-loading { align-items: center; justify-content: center; color: var(--text-muted); font-size: 12px; }
 
