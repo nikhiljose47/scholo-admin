@@ -137,12 +137,6 @@ export const routes: Routes = [
           import('./features/community-content/community-content-admin.page').then(m => m.CommunityContentAdminPage),
       },
       {
-        path: 'applications',
-        canActivate: [adminGuard],
-        loadComponent: () =>
-          import('./features/centers/list/centers-list.component').then(m => m.CentersListComponent),
-      },
-      {
         path: 'teachers',
         canActivate: [adminGuard],
         loadComponent: () =>
@@ -163,12 +157,6 @@ export const routes: Routes = [
         path: 'profile',
         loadComponent: () =>
           import('./features/profile/profile.component').then(m => m.ProfileComponent),
-      },
-      {
-        path: 'settings',
-        canActivate: [adminGuard],
-        loadComponent: () =>
-          import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent),
       },
     ],
   },

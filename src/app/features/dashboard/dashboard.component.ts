@@ -397,7 +397,7 @@ export class DashboardComponent implements OnInit {
 
   adminActions: QuickAction[] = [
     { label: 'Add Center',          description: 'Register a new tuition center',  icon: 'buildings',  path: '/centers/new' },
-    { label: 'Review Applications', description: 'Approve or reject pending apps',  icon: 'clipboard',  path: '/applications' },
+    { label: 'Review Centers',      description: 'Approve or manage tuition centers', icon: 'clipboard', path: '/centers' },
     { label: 'Manage Teachers',     description: 'View and edit teacher accounts',  icon: 'person',     path: '/teachers' },
     { label: 'View Analytics',      description: 'Platform-wide usage reports',     icon: 'chart-bar',  path: '/analytics' },
   ];
