@@ -1,0 +1,216 @@
+<section class="pe" aria-labelledby="pe-h">
+  <header class="pe-head">
+    <h2 id="pe-h">{{ currentId() ? 'Edit problem' : 'Add a problem' }}</h2>
+    <p class="pe-state" [class.pe-dirty]="dirty()" role="status">{{ stateLabel() }}</p>
+  </header>
+
+  @if (loading()) {
+    <p class="pe-hint" aria-busy="true">Loading the saved copy…</p>
+  } @else {
+    @if (banner(); as b) {
+      <div class="pe-banner" [class.pe-bad]="b.kind === 'error'" [class.pe-good]="b.kind === 'ok'" [attr.role]="b.kind === 'error' ? 'alert' : 'status'">
+        {{ b.text }}
+        @if (b.link) { <a [href]="b.link" target="_blank" rel="noopener">Open the public page</a> }
+        @if (conflict()) { <button type="button" class="pe-btn pe-ghost" (click)="reloadLatest()">Load the latest (discards my unsaved edits)</button> }
+      </div>
+    }
+    @if (draft()?.baseStale) {
+      <div class="pe-banner pe-bad" role="alert">The published version changed after you opened it. Publishing is blocked until you reopen the published problem and reapply your change.</div>
+    }
+
+    <form class="pe-form" (submit)="$event.preventDefault(); save()" novalidate>
+      <label class="pe-field">
+        <span>Title *</span>
+        <input [value]="title()" (input)="title.set($any($event.target).value)" [attr.maxlength]="limits.maxTitle" [attr.aria-invalid]="errorsFor('title').length ? 'true' : null" aria-describedby="pe-err-title" />
+        <span id="pe-err-title" class="pe-err" role="alert">@for (e of errorsFor('title'); track $index) { <span>{{ e }}</span> }</span>
+      </label>
+
+      <div class="pe-two">
+        <label class="pe-field">
+          <span>Problem type *</span>
+          <select [value]="type()" (change)="setType($any($event.target).value)" aria-describedby="pe-err-type">
+            @for (t of types; track t) { <option [value]="t" [selected]="type() === t">{{ typeLabel[t] }}</option> }
+          </select>
+          <span id="pe-err-type" class="pe-err" role="alert">@for (e of errorsFor('type'); track $index) { <span>{{ e }}</span> }</span>
+        </label>
+        <label class="pe-field">
+          <span>Difficulty</span>
+          <select [value]="difficulty()" (change)="difficulty.set($any($event.target).value)" aria-describedby="pe-err-difficulty">
+            <option value="" [selected]="difficulty() === ''">Not set yet</option>
+            @for (d of difficulties; track d) { <option [value]="d" [selected]="difficulty() === d">{{ d }}</option> }
+          </select>
+          <span id="pe-err-difficulty" class="pe-err" role="alert">@for (e of errorsFor('difficulty'); track $index) { <span>{{ e }}</span> }</span>
+        </label>
+      </div>
+
+      <label class="pe-field">
+        <span>Question * <small>(Markdown; use $…$ for maths)</small></span>
+        <textarea rows="6" [value]="statement()" (input)="statement.set($any($event.target).value)" [attr.aria-invalid]="errorsFor('statement').length ? 'true' : null" aria-describedby="pe-err-statement"></textarea>
+        <span id="pe-err-statement" class="pe-err" role="alert">@for (e of errorsFor('statement'); track $index) { <span>{{ e }}</span> }</span>
+      </label>
+
+      <fieldset class="pe-field">
+        <legend>Concepts <small>(at least one is needed to publish)</small></legend>
+        <div class="pe-checks">
+          @for (c of concepts(); track c.slug) {
+            <label><input type="checkbox" [checked]="conceptSlugs().includes(c.slug)" (change)="toggleConcept(c.slug, $any($event.target).checked)" /> {{ c.title }}</label>
+          }
+        </div>
+        <span class="pe-err" role="alert">@for (e of errorsFor('conceptSlugs'); track $index) { <span>{{ e }}</span> }</span>
+      </fieldset>
+
+      <label class="pe-field">
+        <span>Tags <small>(comma separated)</small></span>
+        <input [value]="tags()" (input)="tags.set($any($event.target).value)" aria-describedby="pe-err-tags" />
+        <span id="pe-err-tags" class="pe-err" role="alert">@for (e of errorsFor('tags'); track $index) { <span>{{ e }}</span> }</span>
+      </label>
+
+      @if (type() === 'mcq') {
+        <fieldset class="pe-field">
+          <legend>Options and correct answer <small>(tick every correct option)</small></legend>
+          @for (o of options(); track o.id; let i = $index) {
+            <div class="pe-option">
+              <label class="pe-correct"><input type="checkbox" [checked]="correct().includes(o.id)" (change)="toggleCorrect(o.id, $any($event.target).checked)" [attr.aria-label]="'Option ' + o.id.toUpperCase() + ' is correct'" /> {{ o.id.toUpperCase() }}</label>
+              <input class="pe-grow" [value]="o.text" (input)="setOption(o.id, { text: $any($event.target).value })" [attr.maxlength]="limits.maxOptionText" [attr.aria-label]="'Text of option ' + o.id.toUpperCase()" />
+              <input class="pe-grow" [value]="o.explanation" (input)="setOption(o.id, { explanation: $any($event.target).value })" [attr.maxlength]="limits.maxOptionText" placeholder="Why (optional)" [attr.aria-label]="'Why option ' + o.id.toUpperCase() + ' is right or wrong'" />
+              <button type="button" class="pe-btn pe-ghost" (click)="removeOption(o.id)" [attr.aria-label]="'Remove option ' + o.id.toUpperCase()">Remove</button>
+            </div>
+          }
+          <button type="button" class="pe-btn pe-ghost" (click)="addOption()" [disabled]="options().length >= limits.maxOptions">Add option</button>
+          <span class="pe-err" role="alert">@for (e of errorsFor('options'); track $index) { <span>{{ e }}</span> }</span>
+        </fieldset>
+      } @else {
+        <label class="pe-field">
+          <span>Correct answer <small>(can be added later)</small></span>
+          <textarea rows="2" [value]="answer()" (input)="answer.set($any($event.target).value)" aria-describedby="pe-err-answer"></textarea>
+          <span id="pe-err-answer" class="pe-err" role="alert">@for (e of errorsFor('answer'); track $index) { <span>{{ e }}</span> }</span>
+        </label>
+      }
+      @if (type() === 'mcq') {
+        <span class="pe-err" role="alert">@for (e of errorsFor('answer'); track $index) { <span>{{ e }}</span> }</span>
+      }
+
+      <label class="pe-field">
+        <span>Explanation <small>(can be added later; needed to publish)</small></span>
+        <textarea rows="6" [value]="explanation()" (input)="explanation.set($any($event.target).value)" aria-describedby="pe-err-explanation"></textarea>
+        <span id="pe-err-explanation" class="pe-err" role="alert">@for (e of errorsFor('explanation'); track $index) { <span>{{ e }}</span> }</span>
+      </label>
+
+      <details class="pe-more">
+        <summary>Diagram, images, source and search settings</summary>
+        <label class="pe-field">
+          <span>Diagram <small>(optional DiagramSpec JSON; no HTML or SVG markup)</small></span>
+          <textarea rows="5" class="pe-code" [value]="diagramsJson()" (input)="diagramsJson.set($any($event.target).value)" aria-describedby="pe-err-diagrams"></textarea>
+          <span id="pe-err-diagrams" class="pe-err" role="alert">@for (e of errorsFor('diagrams'); track $index) { <span>{{ e }}</span> }</span>
+        </label>
+        <label class="pe-field">
+          <span>Image ids <small>(upload in the Images tab first; separate with commas)</small></span>
+          <input [value]="mediaIds()" (input)="mediaIds.set($any($event.target).value)" aria-describedby="pe-err-media" />
+          <span id="pe-err-media" class="pe-err" role="alert">@for (e of errorsFor('media'); track $index) { <span>{{ e }}</span> }</span>
+        </label>
+        <div class="pe-two">
+          <label class="pe-field">
+            <span>Source</span>
+            <select [value]="sourceType()" (change)="sourceType.set($any($event.target).value)" aria-describedby="pe-err-source">
+              <option value="" [selected]="sourceType() === ''">Not set yet</option>
+              <option value="original" [selected]="sourceType() === 'original'">Original Scholo work</option>
+              <option value="licensed" [selected]="sourceType() === 'licensed'">Open licence</option>
+              <option value="permission" [selected]="sourceType() === 'permission'">Written permission</option>
+            </select>
+          </label>
+          <label class="pe-field">
+            <span>Licence</span>
+            @if (sourceType() === 'permission') {
+              <input [value]="license()" (input)="license.set($any($event.target).value)" placeholder="Describe the documented permission" />
+            } @else {
+              <select [value]="license()" (change)="license.set($any($event.target).value)">
+                <option value="" [selected]="license() === ''">Choose…</option>
+                @for (l of licenses; track l) { <option [value]="l" [selected]="license() === l">{{ l }}</option> }
+              </select>
+            }
+          </label>
+        </div>
+        <label class="pe-field">
+          <span>Attribution <small>(required unless original)</small></span>
+          <input [value]="attribution()" (input)="attribution.set($any($event.target).value)" />
+          <span id="pe-err-source" class="pe-err" role="alert">@for (e of errorsFor('source'); track $index) { <span>{{ e }}</span> }</span>
+        </label>
+        <label class="pe-field">
+          <span>Link name (optional) <small>(letters, digits and hyphens; generated from the title if empty)</small></span>
+          <input [value]="slug()" (input)="slug.set($any($event.target).value)" aria-describedby="pe-err-slug" />
+          <span id="pe-err-slug" class="pe-err" role="alert">@for (e of errorsFor('slug'); track $index) { <span>{{ e }}</span> }</span>
+        </label>
+        <label class="pe-check"><input type="checkbox" [checked]="seoEligible()" (change)="seoEligible.set($any($event.target).checked)" /> Let search engines index this problem once published</label>
+      </details>
+
+      @if (errorsFor('problem').length) {
+        <p class="pe-err" role="alert">@for (e of errorsFor('problem'); track $index) { <span>{{ e }}</span> }</p>
+      }
+
+      <div class="pe-actions">
+        <button type="submit" class="pe-btn" [disabled]="saving()">{{ saving() ? 'Saving…' : 'Save draft' }}</button>
+        <button type="button" class="pe-btn pe-ghost" (click)="showPreview()">Preview</button>
+        <button type="button" class="pe-btn pe-primary" (click)="askPublish()" [disabled]="!canPublish() || confirming()" [attr.aria-describedby]="canPublish() ? null : 'pe-needs'">Publish…</button>
+        <button type="button" class="pe-btn pe-ghost" (click)="closed.emit()">Close</button>
+      </div>
+    </form>
+
+    @if (!canPublish()) {
+      <div id="pe-needs" class="pe-needs" aria-live="polite">
+        @if (!currentId()) {
+          <p>Save the draft first. Publishing uses the saved copy.</p>
+        } @else if (dirty()) {
+          <p>You have unsaved changes. Save the draft to check whether it can be published.</p>
+        } @else if (draft()?.readiness?.errors?.length) {
+          <p>Before this can be published:</p>
+          <ul>@for (e of draft()!.readiness.errors; track $index) { <li><code>{{ e.field }}</code> {{ e.message }}</li> }</ul>
+        }
+      </div>
+    }
+
+    @if (confirming()) {
+      <div class="pe-confirm" role="alertdialog" aria-labelledby="pe-confirm-h">
+        <p id="pe-confirm-h"><strong>Make this problem public?</strong> It gets one permanent link. If it already exists, the live version is replaced only when this succeeds, and you can roll back from Releases.</p>
+        <label class="pe-check"><input type="checkbox" [checked]="reviewed()" (change)="reviewed.set($any($event.target).checked)" /> I checked the preview, the answer and the licence.</label>
+        @if (errorsFor('confirm').length) { <p class="pe-err" role="alert">{{ errorsFor('confirm')[0] }}</p> }
+        <div class="pe-actions">
+          <button type="button" class="pe-btn pe-primary" (click)="publish()" [disabled]="!reviewed() || publishing()">{{ publishing() ? 'Publishing…' : 'Publish now' }}</button>
+          <button type="button" class="pe-btn pe-ghost" (click)="confirming.set(false)" [disabled]="publishing()">Cancel</button>
+        </div>
+      </div>
+    }
+
+    @if (preview(); as pv) {
+      <article class="pe-preview" aria-labelledby="pe-pv-h">
+        <header>
+          <p class="pe-hint">Private preview: only you can see this. It is not indexed and is not stored. {{ pv.saved ? '' : 'Showing the form as typed.' }}</p>
+          <button type="button" class="pe-btn pe-ghost" (click)="closePreview()">Close preview</button>
+        </header>
+        <h3 id="pe-pv-h">{{ pv.problem.title || 'Untitled' }}</h3>
+        <p class="pe-hint">{{ typeLabel[pv.problem.type] }} · {{ pv.problem.difficulty ?? 'difficulty not set' }}</p>
+        <div class="pe-rich" [innerHTML]="pv.problem.statement.text | safeMarkdown"></div>
+        @for (d of pv.problem.diagrams; track $index) { <app-diagram class="pe-diagram" [spec]="d" /> }
+        @for (m of pv.problem.media; track m.id) {
+          <figure><img [src]="mediaSrc(m)" [alt]="m.alt" [attr.width]="m.width" [attr.height]="m.height" /><figcaption>{{ m.alt }}</figcaption></figure>
+        }
+        @if (pv.problem.type === 'mcq' && pv.problem.options) {
+          <ol type="A" class="pe-opts">
+            @for (o of pv.problem.options; track o.id) {
+              <li [class.pe-right]="(pv.problem.answer?.text ?? '').split(',').includes(o.id)"><span [innerHTML]="o.text | safeMarkdown"></span></li>
+            }
+          </ol>
+        }
+        <h4>Answer</h4>
+        @if (pv.problem.answer) {
+          @if (pv.problem.type === 'mcq') { <p>Correct: {{ pv.problem.answer.text.toUpperCase() }}</p> }
+          @else { <div class="pe-rich" [innerHTML]="pv.problem.answer.text | safeMarkdown"></div> }
+        } @else { <p class="pe-hint">Not written yet.</p> }
+        <h4>Explanation</h4>
+        @if (pv.problem.explanation) { <div class="pe-rich" [innerHTML]="pv.problem.explanation.text | safeMarkdown"></div> } @else { <p class="pe-hint">Not written yet.</p> }
+        @if (pv.saved || pv.readiness.errors.length || pv.readiness.publishable) {
+          <p [class.pe-good-text]="pv.readiness.publishable" class="pe-hint">{{ pv.readiness.publishable ? 'This version passes every publish check.' : 'Not ready to publish yet (see the list under the buttons after saving).' }}</p>
+        }
+      </article>
+    }
+  }
+</section>

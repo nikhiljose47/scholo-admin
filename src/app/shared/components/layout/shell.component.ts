@@ -340,6 +340,7 @@ export class ShellComponent {
     { label: 'Class Progress',  icon: 'check',        path: '/progress' },
     { label: 'Syllabus',        icon: 'template',     path: '/syllabus' },
     { label: 'Puzzles',         icon: 'search',       path: '/puzzles' },
+    { label: 'Community Content', icon: 'template',   path: '/community-content', adminOnly: true },
     { label: 'Materials',       icon: 'selector',     path: '/materials' },
     { label: 'Tuition Centers', icon: 'buildings',    path: '/providers',    adminOnly: true },
     { label: 'Classes',         icon: 'academic-cap', path: '/classes',      adminOnly: true },

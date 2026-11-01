@@ -10,4 +10,6 @@ export const environment = {
     appId: '1:1075520564177:web:120808765ddd8c64a70ef0',
   },
   syllabusApiBaseUrl: 'https://content.scholo.co.in',
+  /** Community Problem Library admin UI. See content-api's ALLOWED_ORIGINS for CORS setup. */
+  problemLibrary: { enabled: true, apiBase: 'https://content-api.nikhiljose47.workers.dev' },
 };

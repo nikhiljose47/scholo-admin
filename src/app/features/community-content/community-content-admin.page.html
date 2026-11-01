@@ -1,0 +1,288 @@
+<main class="ca">
+  <header class="ca-head">
+    <a routerLink="/admin-dashboard" class="ca-back">← Admin</a>
+    <h1>Community content</h1>
+    <p>Add one problem or import many, review them, and publish. Nothing is public until you publish.</p>
+  </header>
+
+  @if (!configured) {
+    <div class="ca-banner ca-error" role="alert">The Problem Library service is not configured for this site (<code>environment.problemLibrary</code>).</div>
+  } @else {
+    <div class="ca-bar">
+      <label>
+        <span>Topic</span>
+        <select [value]="topicId()" (change)="setTopic($any($event.target).value); $any($event.target).value = topicId()">
+          @for (t of topics; track t.id) {
+            <option [value]="t.id">{{ t.title }}</option>
+          }
+        </select>
+      </label>
+      <nav class="ca-tabs" aria-label="Content sections">
+        @for (s of sections; track s.id) {
+          <button type="button" [class.active]="section() === s.id" [attr.aria-current]="section() === s.id ? 'page' : null" (click)="setSection(s.id)">{{ s.label }}</button>
+        }
+      </nav>
+    </div>
+
+    @if (message(); as m) {
+      <div class="ca-banner" [class.ca-error]="m.kind === 'error'" [class.ca-ok]="m.kind === 'ok'" [attr.role]="m.kind === 'error' ? 'alert' : 'status'">{{ m.text }}</div>
+    }
+
+    @switch (section()) {
+      @case ('add') {
+        <p class="ca-hint">Write one problem now and finish it later. It stays private until you publish.</p>
+        @for (n of [addNonce()]; track n) {
+          <app-problem-editor [topicId]="topicId()" [draftId]="null" (dirtyChange)="editorDirty.set($event)" (closed)="setSection('drafts')" />
+        }
+        <div class="ca-row"><button type="button" class="ca-btn ca-ghost" (click)="newProblem()">Start another problem</button></div>
+      }
+
+      @case ('drafts') {
+        @if (openDraftId(); as id) {
+          <app-problem-editor [topicId]="topicId()" [draftId]="id" (dirtyChange)="editorDirty.set($event)" (closed)="closeDraft()" />
+        } @else {
+          <section class="ca-card" aria-labelledby="ca-drafts">
+            <h2 id="ca-drafts">Drafts</h2>
+            <p class="ca-hint">Private work in progress for this topic. Drafts never appear on the public site.</p>
+            @if (busy() && !drafts()) {
+              <p class="ca-hint">Loading…</p>
+            } @else if (drafts(); as list) {
+              @if (list.length === 0) {
+                <p class="ca-hint">No drafts yet. Use Add Problem to start one.</p>
+              } @else {
+                <div class="ca-table-wrap">
+                  <table class="ca-table">
+                    <caption class="sr-only">Drafts for this topic</caption>
+                    <thead><tr><th scope="col">Title</th><th scope="col">Type</th><th scope="col">Kind</th><th scope="col">Saved</th><th scope="col"><span class="sr-only">Action</span></th></tr></thead>
+                    <tbody>
+                      @for (d of list; track d.id) {
+                        <tr>
+                          <td>{{ d.title || 'Untitled' }}</td>
+                          <td>{{ d.type === 'mcq' ? 'Multiple choice' : d.type === 'worked_solution' ? 'Worked solution' : 'Short answer' }}</td>
+                          <td>{{ d.kind === 'revision' ? 'Revision of a published problem' : d.kind === 'import' ? 'From an import' : 'New' }}</td>
+                          <td>@if (d.updatedAt) { <time [attr.datetime]="d.updatedAt">{{ d.updatedAt.slice(0, 16).replace('T', ' ') }}</time> }</td>
+                          <td><button type="button" class="ca-btn ca-ghost" (click)="openDraft(d.id)">Open</button></td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              }
+              @if (draftCursor()) {
+                <div class="ca-row"><button type="button" class="ca-btn ca-ghost" (click)="loadDrafts(false)" [disabled]="busy()">Load more</button></div>
+              }
+            }
+            <div class="ca-row"><button type="button" class="ca-btn ca-ghost" (click)="loadDrafts(true)" [disabled]="busy()">Refresh</button></div>
+          </section>
+        }
+      }
+
+      @case ('import') {
+        <section class="ca-card" aria-labelledby="ca-import">
+          <h2 id="ca-import">1. Choose a file</h2>
+          <p class="ca-hint">JSON or CSV. Large files are checked in batches of up to {{ maxItems }} problems; your file stays in this browser until each batch is sent.</p>
+          <input type="file" accept=".json,.csv,application/json,text/csv" (change)="chooseFile($event)" [disabled]="running()" aria-label="Import file" />
+          @if (plan(); as p) {
+            <p class="ca-hint"><strong>{{ fileName() }}</strong>: {{ p.totalRows }} problems in {{ p.batches.length }} batch{{ p.batches.length === 1 ? '' : 'es' }}.</p>
+            <div class="ca-row">
+              <button type="button" class="ca-btn" (click)="runImport()" [disabled]="running() || importFinished()">
+                {{ running() ? 'Checking…' : reports().length > 0 && !importFinished() ? 'Resume check' : 'Check file' }}
+              </button>
+              @if (running() || reports().length > 0) {
+                <progress [max]="progress().total" [value]="progress().done" [attr.aria-label]="'Checked ' + progress().done + ' of ' + progress().total + ' batches'"></progress>
+                <span class="ca-hint">{{ progress().done }} / {{ progress().total }} batches</span>
+              }
+            </div>
+          }
+        </section>
+
+        @if (reports().length > 0) {
+          <section class="ca-card" aria-labelledby="ca-review">
+            <h2 id="ca-review">2. Review</h2>
+            <dl class="ca-stats">
+              <div><dt>Rows</dt><dd>{{ totals().rows }}</dd></div>
+              <div><dt>New</dt><dd>{{ totals().new }}</dd></div>
+              <div><dt>Changed</dt><dd>{{ totals().update }}</dd></div>
+              <div><dt>Unchanged</dt><dd>{{ totals().unchanged }}</dd></div>
+              <div class="ca-bad"><dt>Invalid</dt><dd>{{ totals().invalid }}</dd></div>
+              <div><dt>Warnings</dt><dd>{{ totals().warnings }}</dd></div>
+            </dl>
+
+            @if (allErrors().length > 0) {
+              <h3>Rows to fix</h3>
+              <p class="ca-hint">Invalid rows are skipped and never published. Fix them in your file and check again.</p>
+              <div class="ca-table-wrap">
+                <table class="ca-table">
+                  <caption class="sr-only">Invalid rows</caption>
+                  <thead><tr><th scope="col">Row</th><th scope="col">Field</th><th scope="col">Problem</th></tr></thead>
+                  <tbody>
+                    @for (e of errorSlice(); track $index) {
+                      <tr><td>{{ e.row }}</td><td><code>{{ e.field }}</code></td><td>{{ e.message }}</td></tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              <div class="ca-row">
+                <button type="button" class="ca-btn ca-ghost" (click)="goErrorPage(-1)" [disabled]="errorPage() === 0">Previous</button>
+                <span class="ca-hint">Page {{ errorPage() + 1 }} of {{ errorPages() }} ({{ allErrors().length }} errors shown)</span>
+                <button type="button" class="ca-btn ca-ghost" (click)="goErrorPage(1)" [disabled]="errorPage() >= errorPages() - 1">Next</button>
+              </div>
+            }
+          </section>
+
+          <section class="ca-card" aria-labelledby="ca-staged">
+            <h2 id="ca-staged">Open an imported problem in the editor</h2>
+            <p class="ca-hint">Fix one record by hand before publishing. It opens as a private draft in the same editor as Add Problem.</p>
+            <div class="ca-row">
+              @for (r of reports(); track r.batchId; let i = $index) {
+                <button type="button" class="ca-btn ca-ghost" (click)="showStaged(r.batchId)">Batch {{ i + 1 }}</button>
+              }
+            </div>
+            @if (staged(); as st) {
+              <div class="ca-table-wrap">
+                <table class="ca-table">
+                  <caption class="sr-only">Problems in this batch</caption>
+                  <thead><tr><th scope="col">Row</th><th scope="col">Title</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Action</span></th></tr></thead>
+                  <tbody>
+                    @for (it of st.page.items; track it.id) {
+                      <tr>
+                        <td>{{ it.row }}</td><td>{{ it.title }}</td><td>{{ it.status }}</td>
+                        <td><button type="button" class="ca-btn ca-ghost" (click)="openImported(st.batchId, it.id)" [disabled]="busy()">Open in editor</button></td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              <div class="ca-row">
+                <button type="button" class="ca-btn ca-ghost" (click)="showStaged(st.batchId, st.page.offset - st.page.limit)" [disabled]="st.page.offset === 0">Previous</button>
+                <button type="button" class="ca-btn ca-ghost" (click)="showStaged(st.batchId, st.page.offset + st.page.limit)" [disabled]="st.page.offset + st.page.limit >= st.page.publishable">Next</button>
+              </div>
+            }
+          </section>
+
+          @if (importFinished()) {
+            <section class="ca-card" aria-labelledby="ca-publish">
+              <h2 id="ca-publish">3. Publish</h2>
+              @if (publishedRelease(); as r) {
+                <p class="ca-ok-text">Live as release <strong>{{ r }}</strong>.</p>
+              } @else if (totals().publishable === 0) {
+                <p class="ca-hint">There is nothing new or changed to publish.</p>
+              } @else if (!confirmPublish()) {
+                <p class="ca-hint">{{ totals().publishable }} problems are ready ({{ totals().new }} new, {{ totals().update }} changed).</p>
+                <button type="button" class="ca-btn" (click)="askPublish()">Publish {{ totals().publishable }} problems…</button>
+              } @else {
+                <div class="ca-confirm" role="alertdialog" aria-labelledby="ca-confirm-h">
+                  <p id="ca-confirm-h"><strong>Make {{ totals().publishable }} problems public now?</strong> You can roll back afterwards.</p>
+                  <div class="ca-row">
+                    <button type="button" class="ca-btn" (click)="publish()" [disabled]="publishing()">{{ publishing() ? 'Publishing…' : 'Yes, publish' }}</button>
+                    <button type="button" class="ca-btn ca-ghost" (click)="cancelPublish()" [disabled]="publishing()">Cancel</button>
+                  </div>
+                </div>
+              }
+            </section>
+          }
+        }
+      }
+
+      @case ('releases') {
+        <section class="ca-card" aria-labelledby="ca-rel">
+          <h2 id="ca-rel">Releases</h2>
+          @if (busy() && !releases()) {
+            <p class="ca-hint">Loading…</p>
+          } @else if (releases(); as r) {
+            @if (r.releases.length === 0) {
+              <p class="ca-hint">Nothing has been published for this topic yet.</p>
+            } @else {
+              <div class="ca-table-wrap">
+                <table class="ca-table">
+                  <caption class="sr-only">Releases, newest first</caption>
+                  <thead><tr><th scope="col">Release</th><th scope="col">What</th><th scope="col">When</th><th scope="col">Problems</th><th scope="col"><span class="sr-only">Action</span></th></tr></thead>
+                  <tbody>
+                    @for (rel of r.releases; track rel.release) {
+                      <tr>
+                        <td><code>{{ rel.release }}</code> @if (rel.release === r.active) { <strong class="ca-live">live</strong> }</td>
+                        <td>{{ rel.kind }} (+{{ rel.added }} / ~{{ rel.updated }} / −{{ rel.removed }})</td>
+                        <td><time [attr.datetime]="rel.createdAt">{{ rel.createdAt.slice(0, 16).replace('T', ' ') }}</time></td>
+                        <td>{{ rel.itemCount }}</td>
+                        <td>
+                          @if (rel.release !== r.active) {
+                            @if (rollbackTarget() === rel.release) {
+                              <button type="button" class="ca-btn ca-danger" (click)="confirmRollback()" [disabled]="busy()">Confirm rollback</button>
+                              <button type="button" class="ca-btn ca-ghost" (click)="rollbackTarget.set(null)">Cancel</button>
+                            } @else {
+                              <button type="button" class="ca-btn ca-ghost" (click)="askRollback(rel.release)">Roll back to this</button>
+                            }
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          }
+          <button type="button" class="ca-btn ca-ghost" (click)="loadReleases()" [disabled]="busy()">Refresh</button>
+        </section>
+      }
+
+      @case ('edit') {
+        <section class="ca-card" aria-labelledby="ca-edit">
+          <h2 id="ca-edit">Published problems</h2>
+          <p class="ca-hint">Load a live problem by id. "Revise privately" opens it in the editor: the live version stays public until you publish your revision.</p>
+          <form class="ca-row" (submit)="$event.preventDefault(); loadForEdit()">
+            <label class="ca-grow"><span>Problem id</span><input [value]="editId()" (input)="editId.set($any($event.target).value)" placeholder="e.g. p-poly-000123" /></label>
+            <button type="submit" class="ca-btn" [disabled]="busy() || !editId().trim()">Load</button>
+          </form>
+
+          @if (editing(); as p) {
+            <form class="ca-form" (submit)="$event.preventDefault(); saveEdit({ title: t.value, difficulty: d.value, tags: g.value, statement: s.value, answer: a.value, explanation: x.value })">
+              <p class="ca-hint">Version {{ p.contentVersion }}. If someone else saves first you will be asked to reload.</p>
+              <label><span>Title</span><input #t [value]="p.title" maxlength="200" /></label>
+              <label><span>Difficulty</span>
+                <select #d [value]="p.difficulty"><option value="foundation">foundation</option><option value="core">core</option><option value="advanced">advanced</option></select>
+              </label>
+              <label><span>Tags (comma separated)</span><input #g [value]="p.tags.join(', ')" /></label>
+              <label><span>Statement</span><textarea #s rows="5" [value]="p.statement.text"></textarea></label>
+              <label><span>Answer</span><textarea #a rows="2" [value]="p.answer.text"></textarea></label>
+              <label><span>Explanation</span><textarea #x rows="6" [value]="p.explanation.text"></textarea></label>
+              @if (editErrors().length > 0) {
+                <ul class="ca-errors" role="alert">
+                  @for (e of editErrors(); track $index) {
+                    <li><code>{{ e.field }}</code> {{ e.message }}</li>
+                  }
+                </ul>
+              }
+              <div class="ca-row">
+                <button type="submit" class="ca-btn" [disabled]="busy()">Quick save and publish</button>
+                <button type="button" class="ca-btn ca-ghost" (click)="reviseInEditor(p.id)" [disabled]="busy()">Revise privately in the editor</button>
+                @if (!confirmUnpublish()) {
+                  <button type="button" class="ca-btn ca-ghost" (click)="askUnpublish()">Unpublish…</button>
+                } @else {
+                  <button type="button" class="ca-btn ca-danger" (click)="unpublish()" [disabled]="busy()">Confirm: remove from public</button>
+                  <button type="button" class="ca-btn ca-ghost" (click)="confirmUnpublish.set(false)">Cancel</button>
+                }
+              </div>
+            </form>
+          }
+        </section>
+      }
+
+      @case ('media') {
+        <section class="ca-card" aria-labelledby="ca-media">
+          <h2 id="ca-media">Upload an image</h2>
+          <p class="ca-hint">PNG, JPEG or WebP, up to 1 MB. SVG is not accepted. After uploading, paste the id into a problem's <code>media</code> list.</p>
+          <form class="ca-form" (submit)="uploadMedia($event, f, alt.value, lic.value, attr.value)">
+            <label><span>Image</span><input #f type="file" accept="image/png,image/jpeg,image/webp" /></label>
+            <label><span>Alt text (required)</span><input #alt maxlength="200" placeholder="Describe the image for a screen reader" /></label>
+            <label><span>Licence</span><select #lic>@for (l of licenses; track l) {<option [value]="l">{{ l }}</option>}</select></label>
+            <label><span>Attribution (required unless Scholo original)</span><input #attr maxlength="200" /></label>
+            <div class="ca-row"><button type="submit" class="ca-btn" [disabled]="busy()">Upload</button></div>
+          </form>
+          @if (uploaded(); as u) {
+            <p class="ca-ok-text" role="status">{{ u.created ? 'Uploaded.' : 'This exact image was already uploaded.' }} Id: <code>{{ u.id }}</code></p>
+          }
+        </section>
+      }
+    }
+  }
+</main>

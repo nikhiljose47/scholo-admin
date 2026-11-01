@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { staffGuard } from './core/guards/staff.guard';
 import { adminGuard } from './core/guards/admin.guard';
 import { ShellComponent } from './shared/components/layout/shell.component';
+import { unsavedChangesGuard } from './features/community-content/unsaved-changes.guard';
 
 export const routes: Routes = [
   {
@@ -127,6 +128,13 @@ export const routes: Routes = [
         path: 'materials',
         loadComponent: () =>
           import('./features/providers/materials-page.component').then(m => m.MaterialsPageComponent),
+      },
+      {
+        path: 'community-content',
+        canActivate: [adminGuard],
+        canDeactivate: [unsavedChangesGuard],
+        loadComponent: () =>
+          import('./features/community-content/community-content-admin.page').then(m => m.CommunityContentAdminPage),
       },
       {
         path: 'applications',
