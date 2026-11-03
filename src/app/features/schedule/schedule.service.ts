@@ -294,11 +294,9 @@ export class ScheduleService {
     return res;
   }
 
-  /** Cancel a session by setting endAt to now — matches existing app's pattern. */
+  /** Cancel a session by deleting its document from the schedule. */
   async cancelMeeting(id: string): Promise<FireResponse<void>> {
-    const res = await this.fs.update(`${COLLECTION}/${id}`, {
-      endAt: Timestamp.fromMillis(Date.now() - 1000),
-    });
+    const res = await this.fs.delete(`${COLLECTION}/${id}`);
     if (res.ok) this.invalidateScheduleCache();
     return res;
   }

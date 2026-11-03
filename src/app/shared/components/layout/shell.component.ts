@@ -4,6 +4,8 @@ import { CommonModule, NgStyle } from '@angular/common';
 import { AdminAuthService } from '../../../core/services/auth/admin-auth.service';
 import { ThemeService } from '../../../core/services/theme/theme.service';
 import { IconComponent } from '../icon/icon.component';
+import { ConfirmDialogComponent } from '../ui/confirm-dialog/confirm-dialog.component';
+import { ToastComponent } from '../ui/toast/toast.component';
 
 interface NavItem {
   label: string;
@@ -15,7 +17,7 @@ interface NavItem {
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule, NgStyle, IconComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule, NgStyle, IconComponent, ConfirmDialogComponent, ToastComponent],
   template: `
     <div class="shell">
 
@@ -90,6 +92,9 @@ interface NavItem {
       </main>
 
     </div>
+
+    <app-confirm-dialog />
+    <app-toast />
   `,
   styles: [`
     :host { display: contents; }

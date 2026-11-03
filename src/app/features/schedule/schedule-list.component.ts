@@ -13,6 +13,8 @@ import { SessionAssessmentEntryComponent } from './session-assessment-entry.comp
 import { StudentSessionResultsListComponent } from './student-session-results-list.component';
 import { ClassWrapupComponent } from './class-wrapup.component';
 import { SessionImportRow, StudentSessionResult, RosterEntry } from '../../models/schedule/session-result.model';
+import { ConfirmDialogService } from '../../shared/services/confirm-dialog.service';
+import { ToastService } from '../../shared/services/toast.service';
 
 @Component({
   selector: 'app-schedule-list',
@@ -50,11 +52,6 @@ import { SessionImportRow, StudentSessionResult, RosterEntry } from '../../model
           </a>
         </div>
       </header>
-
-      <!-- Toast -->
-      <div *ngIf="toast()" class="toast" [class.toast-error]="toast()!.type === 'error'">
-        {{ toast()!.msg }}
-      </div>
 
       <!-- ── Teacher meeting strip ── -->
       <ng-container *ngIf="auth.isTeacher()">
@@ -198,7 +195,15 @@ import { SessionImportRow, StudentSessionResult, RosterEntry } from '../../model
                     <a [routerLink]="['/schedule', m.id, 'edit']" class="btn btn-ghost btn-sm">Edit</a>
                     <button (click)="viewAttendance(m)" class="btn btn-ghost btn-sm">Attendance</button>
                     <button *ngIf="auth.isTeacher()" (click)="selectMeeting(m)" class="btn btn-secondary btn-sm">Wrap Up</button>
-                    <button (click)="cancel(m)" *ngIf="stateOf(m) !== 'past'" class="btn btn-danger btn-sm">Cancel</button>
+                    <button
+                      (click)="cancel(m)"
+                      *ngIf="stateOf(m) !== 'past'"
+                      [disabled]="cancellingId() === m.id"
+                      class="btn btn-danger btn-sm"
+                    >
+                      <span *ngIf="cancellingId() === m.id" class="btn-spinner"></span>
+                      {{ cancellingId() === m.id ? 'Cancelling…' : 'Cancel' }}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -276,26 +281,17 @@ import { SessionImportRow, StudentSessionResult, RosterEntry } from '../../model
     </div>
   `,
   styles: [`
-    /* ── Toast ── */
-    .toast {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      z-index: 9999;
-      padding: 12px 20px;
-      background: var(--live-bg, #f6ffed);
-      color: var(--live-text, #389e0d);
-      border: 1px solid var(--live-dot, #52c41a);
-      border-radius: var(--r-sm);
-      font-size: 13px;
-      font-weight: 600;
-      box-shadow: var(--shadow-md);
+    /* ── Inline button spinner ── */
+    .btn-spinner {
+      width: 12px;
+      height: 12px;
+      border: 2px solid currentColor;
+      border-top-color: transparent;
+      border-radius: 50%;
+      opacity: 0.6;
+      animation: btn-spin 0.6s linear infinite;
     }
-    .toast.toast-error {
-      background: var(--danger-subtle, #fff1f0);
-      color: var(--danger, #cf1322);
-      border-color: var(--danger-border, #ffa39e);
-    }
+    @keyframes btn-spin { to { transform: rotate(360deg); } }
 
     /* ── Teacher meeting strip ── */
     .strip-wrap {
@@ -562,6 +558,8 @@ import { SessionImportRow, StudentSessionResult, RosterEntry } from '../../model
 export class ScheduleListComponent implements OnInit {
   private service = inject(ScheduleService);
   private wrapUpService = inject(SessionWrapUpService);
+  private confirmDialog = inject(ConfirmDialogService);
+  private toastService = inject(ToastService);
   auth = inject(AdminAuthService);
 
   meetings = signal<Meeting[]>([]);
@@ -581,7 +579,7 @@ export class ScheduleListComponent implements OnInit {
   resultsLoading = signal(false);
   showImportModal = signal(false);
   submitting = signal(false);
-  toast = signal<{ msg: string; type: 'success' | 'error' } | null>(null);
+  cancellingId = signal<string | null>(null);
 
   /** Meetings shown in teacher strip: sorted live → upcoming → past. */
   readonly stripMeetings = computed(() =>
@@ -632,9 +630,25 @@ export class ScheduleListComponent implements OnInit {
   }
 
   async cancel(m: Meeting) {
-    if (!confirm(`Cancel "${m.className}" session on ${this.istDate(m.date)}?`)) return;
-    await this.service.cancelMeeting(m.id);
-    this.meetings.update(list => list.filter(x => x.id !== m.id));
+    const confirmed = await this.confirmDialog.confirm({
+      title: 'Cancel session?',
+      message: `Cancel "${m.className}" session on ${this.istDate(m.date)}? This cannot be undone.`,
+      confirmLabel: 'Cancel session',
+      cancelLabel: 'Keep session',
+      danger: true,
+    });
+    if (!confirmed) return;
+
+    this.cancellingId.set(m.id);
+    const res = await this.service.cancelMeeting(m.id);
+    this.cancellingId.set(null);
+
+    if (res.ok) {
+      this.meetings.update(list => list.filter(x => x.id !== m.id));
+      this.showToast('Session cancelled', 'success');
+    } else {
+      this.showToast(res.message ?? 'Failed to cancel session', 'error');
+    }
   }
 
   viewAttendance(m: Meeting) {
@@ -714,10 +728,11 @@ export class ScheduleListComponent implements OnInit {
     const m = this.selectedMeeting();
     if (!m) return;
 
-    const confirmed = confirm(
-      'Are you sure you want to submit?\n\n' +
-      'This will mark the class as completed and cannot be undone unless admin intervention is done.',
-    );
+    const confirmed = await this.confirmDialog.confirm({
+      title: 'Submit class?',
+      message: 'This will mark the class as completed and cannot be undone unless admin intervention is done.',
+      confirmLabel: 'Submit',
+    });
     if (!confirmed) return;
 
     this.submitting.set(true);
@@ -747,8 +762,7 @@ export class ScheduleListComponent implements OnInit {
   }
 
   private showToast(msg: string, type: 'success' | 'error') {
-    this.toast.set({ msg, type });
-    setTimeout(() => this.toast.set(null), 4000);
+    this.toastService.show(msg, type);
   }
 
   // ── Calendar helpers ──
