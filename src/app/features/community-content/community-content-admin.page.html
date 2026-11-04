@@ -82,6 +82,16 @@
           <h2 id="ca-import">1. Choose a file</h2>
           <p class="ca-hint">JSON or CSV. Large files are checked in batches of up to {{ maxItems }} problems; your file stays in this browser until each batch is sent.</p>
           <input type="file" accept=".json,.csv,application/json,text/csv" (change)="chooseFile($event)" [disabled]="running()" aria-label="Import file" />
+
+          <details class="ca-sample">
+            <summary>See a sample JSON file</summary>
+            <p class="ca-hint">A file is either an array of problems or <code>{{ '{ "problems": [ ... ] }' }}</code>. Required fields depend on <code>type</code>; an <code>mcq</code> needs <code>options</code> and an <code>answer.text</code> matching one of their ids.</p>
+            <pre class="ca-code"><code>{{ sampleImportJson }}</code></pre>
+            <div class="ca-row">
+              <button type="button" class="ca-btn ca-ghost" (click)="copySample()">Copy sample JSON</button>
+            </div>
+          </details>
+
           @if (plan(); as p) {
             <p class="ca-hint"><strong>{{ fileName() }}</strong>: {{ p.totalRows }} problems in {{ p.batches.length }} batch{{ p.batches.length === 1 ? '' : 'es' }}.</p>
             <div class="ca-row">

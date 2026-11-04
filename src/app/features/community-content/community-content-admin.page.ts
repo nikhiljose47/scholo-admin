@@ -32,6 +32,33 @@ const MAX_FILE_BYTES = 25_000_000;
 const ERRORS_PER_PAGE = 20;
 const LICENSES = ['Scholo original', 'CC0-1.0', 'CC-BY-4.0', 'CC-BY-SA-4.0', 'public-domain'];
 
+/** Shown in the Import Problems tab so the JSON shape doesn't have to be guessed from errors. */
+const SAMPLE_IMPORT_JSON = `{
+  "problems": [
+    {
+      "id": "quad-eq-basics-01",
+      "slug": "quadratic-equation-basics",
+      "type": "mcq",
+      "difficulty": "core",
+      "title": "Solving a basic quadratic equation",
+      "statement": { "format": "markdown", "text": "Solve for x: $x^2 - 5x + 6 = 0$" },
+      "answer": { "format": "text", "text": "a" },
+      "explanation": { "format": "markdown", "text": "Factor as (x-2)(x-3)=0, so x=2 or x=3." },
+      "conceptSlugs": ["quadratic-equations"],
+      "tags": ["algebra", "factoring"],
+      "options": [
+        { "id": "a", "text": "x = 2 or x = 3" },
+        { "id": "b", "text": "x = -2 or x = -3" },
+        { "id": "c", "text": "x = 1 or x = 6" }
+      ],
+      "diagrams": [],
+      "media": [],
+      "source": { "type": "original", "attribution": null, "license": "Scholo original" },
+      "seoEligible": true
+    }
+  ]
+}`;
+
 /**
  * Small content console: import (bounded batches, paged errors), review, publish, release history and
  * rollback, single-problem edit, and image upload. The API is authoritative for permissions; every
@@ -58,6 +85,7 @@ export class CommunityContentAdminPage {
   readonly message = signal<{ kind: 'ok' | 'error'; text: string } | null>(null);
 
   // ----- import -----
+  readonly sampleImportJson = SAMPLE_IMPORT_JSON;
   readonly fileName = signal('');
   readonly plan = signal<SplitResult | null>(null);
   readonly running = signal(false);
@@ -217,6 +245,15 @@ export class CommunityContentAdminPage {
   }
 
   // ---------------- import ----------------
+
+  async copySample(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(this.sampleImportJson);
+      this.message.set({ kind: 'ok', text: 'Sample JSON copied to the clipboard.' });
+    } catch {
+      this.fail('Could not copy automatically; select the sample text and copy it manually.');
+    }
+  }
 
   async chooseFile(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
