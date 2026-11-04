@@ -242,9 +242,9 @@ export function validatePreparedProblem(
     errors.push(`visibility must be one of ${PROBLEM_VISIBILITIES.join(', ')}`);
   }
 
-  const concepts = input['conceptSlugs'];
-  if (!Array.isArray(concepts) || concepts.length === 0 || concepts.length > LIMITS.maxConcepts) {
-    errors.push(`conceptSlugs must be an array of 1-${LIMITS.maxConcepts} slugs`);
+  const concepts = input['conceptSlugs'] ?? [];
+  if (!Array.isArray(concepts) || concepts.length > LIMITS.maxConcepts) {
+    errors.push(`conceptSlugs must be an array containing 0-${LIMITS.maxConcepts} valid concept slugs`);
   } else if (topic) {
     for (const c of concepts) {
       if (typeof c !== 'string' || !topic.concepts.some((tc) => tc.slug === c)) {
@@ -358,7 +358,7 @@ function normalizeProblem(input: Record<string, unknown>): PreparedProblem {
     title: input['title'] as string,
     type: input['type'] as ProblemType,
     difficulty: input['difficulty'] as ProblemDifficulty,
-    conceptSlugs: [...(input['conceptSlugs'] as string[])],
+    conceptSlugs: [...((input['conceptSlugs'] as string[] | undefined) ?? [])],
     tags: [...(input['tags'] as string[])],
     statement: richText(input['statement']),
     answer: richText(input['answer']),

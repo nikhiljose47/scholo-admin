@@ -117,7 +117,7 @@ export function validateDraftFields(input: unknown, topic: TopicLike): Validatio
   const conceptsIn = input['conceptSlugs'] ?? [];
   const conceptSlugs: string[] = [];
   if (!Array.isArray(conceptsIn) || conceptsIn.length > LIMITS.maxConcepts) {
-    errors.push(`conceptSlugs must be an array of at most ${LIMITS.maxConcepts} slugs`);
+    errors.push(`conceptSlugs must be an array containing 0-${LIMITS.maxConcepts} valid concept slugs`);
   } else {
     for (const c of conceptsIn) {
       if (typeof c !== 'string' || !topic.concepts.some((tc) => tc.slug === c)) errors.push(`conceptSlugs contains "${String(c).slice(0, 40)}", which is not a concept of ${topic.id}`);
@@ -238,7 +238,6 @@ export function friendlyPublishMessage(message: string): string {
   if (message.startsWith('answer must be an object')) return 'answer is required to publish';
   if (message.startsWith('explanation must be an object')) return 'explanation is required to publish';
   if (message.startsWith('difficulty must be')) return 'difficulty is required to publish';
-  if (message.startsWith('conceptSlugs must be an array of 1-')) return 'conceptSlugs needs at least one concept to publish';
   if (message === 'source is required (provenance)') return 'source is required to publish (where does this problem come from, and under what licence?)';
   return message;
 }

@@ -50,7 +50,7 @@
       </label>
 
       <fieldset class="pe-field">
-        <legend>Concepts <small>(at least one is needed to publish)</small></legend>
+        <legend>Concepts <small>(optional, up to 5)</small></legend>
         <div class="pe-checks">
           @for (c of concepts(); track c.slug) {
             <label><input type="checkbox" [checked]="conceptSlugs().includes(c.slug)" (change)="toggleConcept(c.slug, $any($event.target).checked)" /> {{ c.title }}</label>
