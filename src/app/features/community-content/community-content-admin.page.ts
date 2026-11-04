@@ -95,6 +95,7 @@ export class CommunityContentAdminPage {
   readonly confirmPublish = signal(false);
   readonly publishing = signal(false);
   readonly publishedRelease = signal<string | null>(null);
+  readonly publishProgress = signal<{ done: number; total: number } | null>(null);
 
   readonly totals = computed(() => {
     const t = { rows: 0, new: 0, update: 0, unchanged: 0, invalid: 0, warnings: 0, publishable: 0 };
@@ -302,12 +303,17 @@ export class CommunityContentAdminPage {
     if (this.publishing()) return;
     const ids = this.reports().filter((r) => r.publishable > 0 && !r.publishedRelease).map((r) => r.batchId);
     if (ids.length === 0) return;
+    const chunks: string[][] = [];
+    for (let i = 0; i < ids.length; i += IMPORT_LIMITS.maxBatchesPerPublish) chunks.push(ids.slice(i, i + IMPORT_LIMITS.maxBatchesPerPublish));
     this.publishing.set(true);
+    this.publishProgress.set({ done: 0, total: chunks.length });
+    this.message.set(null);
     try {
       let release = '';
-      for (let i = 0; i < ids.length; i += IMPORT_LIMITS.maxBatchesPerPublish) {
-        const result = await this.admin.publish(this.topicId(), ids.slice(i, i + IMPORT_LIMITS.maxBatchesPerPublish));
+      for (const [i, chunk] of chunks.entries()) {
+        const result = await this.admin.publish(this.topicId(), chunk);
         release = result.release;
+        this.publishProgress.set({ done: i + 1, total: chunks.length });
       }
       this.publishedRelease.set(release);
       this.confirmPublish.set(false);
@@ -317,6 +323,7 @@ export class CommunityContentAdminPage {
       this.fail(`${this.describe(error)} Nothing new was made public by the failed step; you can retry.`);
     } finally {
       this.publishing.set(false);
+      this.publishProgress.set(null);
     }
   }
 
@@ -331,6 +338,7 @@ export class CommunityContentAdminPage {
     this.errorPage.set(0);
     this.confirmPublish.set(false);
     this.publishedRelease.set(null);
+    this.publishProgress.set(null);
     this.message.set(null);
   }
 

@@ -83,6 +83,8 @@
           <p class="ca-hint">JSON or CSV. Large files are checked in batches of up to {{ maxItems }} problems; your file stays in this browser until each batch is sent.</p>
           <input type="file" accept=".json,.csv,application/json,text/csv" (change)="chooseFile($event)" [disabled]="running()" aria-label="Import file" />
 
+          <p class="ca-hint">Equations render automatically — write LaTeX in <code>statement</code>/<code>answer</code>/<code>explanation</code> using <code>$...$</code> or <code>$$...$$</code>; no extra field needed.</p>
+
           <details class="ca-sample">
             <summary>See a sample JSON file</summary>
             <p class="ca-hint">A file is either an array of problems or <code>{{ '{ "problems": [ ... ] }' }}</code>. Required fields depend on <code>type</code>; an <code>mcq</code> needs <code>options</code> and an <code>answer.text</code> matching one of their ids.</p>
@@ -90,6 +92,12 @@
             <div class="ca-row">
               <button type="button" class="ca-btn ca-ghost" (click)="copySample()">Copy sample JSON</button>
             </div>
+            <ul class="ca-tips">
+              <li>Use a stable, unique <code>id</code> per problem so re-imports update it instead of duplicating it.</li>
+              <li>Keep files to {{ maxItems }} problems or fewer; split larger sets into multiple files.</li>
+              <li>Upload images first on the Images tab, then reference their returned <code>m-…</code> id in <code>media</code>.</li>
+              <li>Always run Check file and fix invalid rows before publishing — nothing goes live until you publish.</li>
+            </ul>
           </details>
 
           @if (plan(); as p) {
@@ -174,7 +182,7 @@
             <section class="ca-card" aria-labelledby="ca-publish">
               <h2 id="ca-publish">3. Publish</h2>
               @if (publishedRelease(); as r) {
-                <p class="ca-ok-text">Live as release <strong>{{ r }}</strong>.</p>
+                <p class="ca-ok-text" role="status">✓ Live as release <strong>{{ r }}</strong>.</p>
               } @else if (totals().publishable === 0) {
                 <p class="ca-hint">There is nothing new or changed to publish.</p>
               } @else if (!confirmPublish()) {
@@ -187,6 +195,12 @@
                     <button type="button" class="ca-btn" (click)="publish()" [disabled]="publishing()">{{ publishing() ? 'Publishing…' : 'Yes, publish' }}</button>
                     <button type="button" class="ca-btn ca-ghost" (click)="cancelPublish()" [disabled]="publishing()">Cancel</button>
                   </div>
+                  @if (publishProgress(); as pp) {
+                    <div class="ca-row">
+                      <progress [max]="pp.total" [value]="pp.done" [attr.aria-label]="'Published ' + pp.done + ' of ' + pp.total + ' batches'"></progress>
+                      <span class="ca-hint">{{ pp.done }} / {{ pp.total }} batches published</span>
+                    </div>
+                  }
                 </div>
               }
             </section>
