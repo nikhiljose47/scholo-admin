@@ -688,7 +688,8 @@ export class TutorRequestsComponent implements OnInit {
 
   async dismiss(request: TutorRequest) {
     if (!confirm(`Dismiss ${this.studentName(request.studentId)}'s request without scheduling?`)) return;
-    await this.tutorService.dismissRequest(request);
+    const res = await this.tutorService.dismissRequest(request);
+    if (!res.ok) alert(res.message ?? 'Failed to dismiss request.');
   }
 
   async setStatus(session: TutorSession, status: TutorSessionStatus) {
