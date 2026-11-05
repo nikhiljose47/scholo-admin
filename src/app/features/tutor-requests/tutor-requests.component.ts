@@ -97,6 +97,24 @@ interface SessionForm {
         </div>
       </section>
 
+      <!-- Resolved/scheduled requests, reopenable -->
+      <section class="section" *ngIf="answeredRequests().length > 0">
+        <h2 class="section-title">Recently answered requests</h2>
+        <div class="request-list">
+          <div *ngFor="let r of answeredRequests()" class="request-card">
+            <div class="avatar">{{ initials(studentName(r.studentId)) }}</div>
+            <div class="request-body">
+              <div class="request-title">{{ studentName(r.studentId) }}</div>
+              <div class="request-sub">{{ className(r.classId) }} · {{ chapterName(r.classId, r.chapterCode) }}</div>
+              <div class="request-time">{{ r.status }} · {{ timeSince(r.createdAt) }}</div>
+            </div>
+            <div class="request-actions">
+              <button class="btn btn-ghost btn-sm" (click)="reopen(r)">Reopen</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- Sessions board -->
       <section class="section">
         <div class="board-header">
@@ -434,11 +452,13 @@ export class TutorRequestsComponent implements OnInit {
 
   form: SessionForm = this.blankForm();
 
-  /** Pending = not yet answered by any non-cancelled session. */
-  pendingRequests = computed(() => {
-    const sessions = this.sessions();
-    return this.requests().filter(r => !TutorRequestsService.isHandled(r.id, sessions));
-  });
+  /** Pending = request doc itself still says 'notified' — the same field the student
+   *  app's "Chat with tutor" button reads, so this list and that button never disagree. */
+  pendingRequests = computed(() => this.requests().filter(r => r.status === 'notified'));
+
+  /** Scheduled/resolved requests, newest first — lets staff reopen one if needed. */
+  answeredRequests = computed(() =>
+    this.requests().filter(r => r.status !== 'notified').slice(0, 30));
 
   scheduledToday = computed(() => {
     const todayStr = toISTDateStr(Timestamp.now());
@@ -687,9 +707,15 @@ export class TutorRequestsComponent implements OnInit {
   // ── Row actions ──
 
   async dismiss(request: TutorRequest) {
-    if (!confirm(`Dismiss ${this.studentName(request.studentId)}'s request without scheduling?`)) return;
+    if (!confirm(`Mark ${this.studentName(request.studentId)}'s request resolved without scheduling?`)) return;
     const res = await this.tutorService.dismissRequest(request);
     if (!res.ok) alert(res.message ?? 'Failed to dismiss request.');
+  }
+
+  async reopen(request: TutorRequest) {
+    if (!confirm(`Reopen ${this.studentName(request.studentId)}'s request? "Chat with tutor" will show as pending again.`)) return;
+    const res = await this.tutorService.reopenRequest(request.id);
+    if (!res.ok) alert(res.message ?? 'Failed to reopen request.');
   }
 
   async setStatus(session: TutorSession, status: TutorSessionStatus) {

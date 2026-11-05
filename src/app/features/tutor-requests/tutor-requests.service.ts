@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { where, orderBy, limit, Timestamp } from '@angular/fire/firestore';
+import { doc, orderBy, limit, Timestamp } from '@angular/fire/firestore';
 import { Observable, map } from 'rxjs';
 import { FirestoreService, FireResponse } from '../../core/services/fire/firestore.service';
 import { AdminAuthService } from '../../core/services/auth/admin-auth.service';
@@ -41,10 +41,10 @@ export interface UpdateSessionInput {
   message?: string;
 }
 
-/** Writes `tutor_sessions` — the collection the student app's bell badge and
- *  /notifications page already read live, but nothing in this app previously wrote to.
- *  `tutor_requests` is treated as read-only: its fixed `status: 'notified'` shape is
- *  never written here, matching the data-model contract from the student-facing site. */
+/** Writes `tutor_sessions`, and now also `tutor_requests.status` — the single field the
+ *  student app's "Chat with tutor" button reads to decide whether to re-enable. Admin/teacher
+ *  is the only writer allowed to move a request to 'scheduled'/'resolved' or reopen it back to
+ *  'notified'; the student app's own Firestore rules are what actually enforce that boundary. */
 @Injectable({ providedIn: 'root' })
 export class TutorRequestsService {
   private fs = inject(FirestoreService);
@@ -52,33 +52,39 @@ export class TutorRequestsService {
   private schedule = inject(ScheduleService);
   private syllabus = inject(SyllabusService);
 
-  /** Realtime: every tutor_requests doc, newest first. Inbox view filters out
-   *  already-handled ones client-side against the live sessions stream, so a
-   *  cancelled session's request reappears instead of staying stuck. */
+  /** Realtime: recent tutor_requests, newest first, every status — the inbox filters to
+   *  'notified' client-side so staff can still see scheduled/resolved history to reopen. */
   listenRequests(): Observable<TutorRequest[]> {
     return this.fs
-      .listenQuery<TutorRequest>(REQUESTS_COLLECTION, where('status', '==', 'notified'), orderBy('createdAt', 'desc'), limit(200))
+      .listenQuery<TutorRequest>(REQUESTS_COLLECTION, orderBy('createdAt', 'desc'), limit(200))
       .pipe(map(res => res.data ?? []));
   }
 
-  /** Realtime: recent tutor_sessions, newest first. Drives the board, the stats
-   *  header and the inbox's "already handled" check — all from one stream. */
+  /** Realtime: recent tutor_sessions, newest first. Drives the sessions board and stats header. */
   listenSessions(pageLimit = 300): Observable<TutorSession[]> {
     return this.fs
       .listenQuery<TutorSession>(SESSIONS_COLLECTION, orderBy('createdAt', 'desc'), limit(pageLimit))
       .pipe(map(res => res.data ?? []));
   }
 
-  /** A request counts as handled once a non-cancelled session answers it —
-   *  cancelling a session deliberately drops its request back into the inbox. */
-  static isHandled(requestId: string, sessions: TutorSession[]): boolean {
-    return sessions.some(s => s.status !== 'cancelled' && (s.requestIds ?? []).includes(requestId));
+  /** No extra read: the request doc backing this id is already held in the component's
+   *  live `requests()` signal, so every caller already has it in hand before calling this. */
+  markResolved(requestId: string): Promise<FireResponse<void>> {
+    return this.fs.update(`${REQUESTS_COLLECTION}/${requestId}`, {
+      status: 'resolved',
+      resolvedAt: this.fs.serverTimestamp(),
+      resolvedBy: this.auth.uid ?? '',
+    });
+  }
+
+  reopenRequest(requestId: string): Promise<FireResponse<void>> {
+    return this.fs.update(`${REQUESTS_COLLECTION}/${requestId}`, { status: 'notified' });
   }
 
   async scheduleSession(input: ScheduleSessionInput): Promise<FireResponse<string>> {
     const scheduledAt = istDateToTimestamp(input.dateStr, input.timeStr);
 
-    const doc: Omit<TutorSession, 'id'> = {
+    const sessionDoc: Omit<TutorSession, 'id'> = {
       studentIds: input.studentIds,
       teacherId: input.teacherId,
       teacherName: input.teacherName,
@@ -96,7 +102,21 @@ export class TutorRequestsService {
       updatedAt: this.fs.serverTimestamp() as Timestamp,
     };
 
-    const res = await this.fs.add(SESSIONS_COLLECTION, doc);
+    let res: FireResponse<string>;
+    try {
+      // Atomic: the new session and the linked request(s)' status move together, in one
+      // round trip — no read-before-write, since the request ids are already known.
+      const batch = this.fs.batch();
+      const sessionRef = doc(this.fs.colRef(SESSIONS_COLLECTION));
+      batch.set(sessionRef, sessionDoc);
+      for (const requestId of input.requestIds ?? []) {
+        batch.update(this.fs.docRef(`${REQUESTS_COLLECTION}/${requestId}`), { status: 'scheduled' });
+      }
+      await batch.commit();
+      res = { ok: true, data: sessionRef.id };
+    } catch (e: unknown) {
+      res = { ok: false, message: (e as Error).message };
+    }
 
     if (res.ok && input.alsoCreateLiveClass && input.classId && input.chapterCode) {
       await this.tryCreateLiveClass(input);
@@ -175,27 +195,11 @@ export class TutorRequestsService {
     });
   }
 
-  /** Marks a request handled without scheduling anything or notifying the student —
-   *  a cancelled stub session is the only way to do this without writing to the
-   *  read-only tutor_requests collection (see TutorRequestsService.isHandled). */
-  async dismissRequest(request: TutorRequest): Promise<FireResponse<string>> {
-    const operator = this.auth.userProfile();
-    const doc: Omit<TutorSession, 'id'> = {
-      studentIds: [request.studentId],
-      teacherId: this.auth.uid ?? '',
-      teacherName: operator?.name ?? '',
-      meetLink: '',
-      scheduledAt: this.fs.serverTimestamp() as Timestamp,
-      durationMinutes: 0,
-      status: 'cancelled',
-      classId: request.classId,
-      chapterCode: request.chapterCode,
-      requestIds: [request.id],
-      seenBy: [],
-      createdAt: this.fs.serverTimestamp() as Timestamp,
-      updatedAt: this.fs.serverTimestamp() as Timestamp,
-    };
-    return this.fs.add(SESSIONS_COLLECTION, doc);
+  /** Marks a request resolved without scheduling anything — a direct write to the same
+   *  `tutor_requests` doc the student app reads, re-enabling "Chat with tutor" for them.
+   *  No `tutor_sessions` stub is created; there's nothing to schedule, cancel or seen-by. */
+  dismissRequest(request: TutorRequest): Promise<FireResponse<void>> {
+    return this.markResolved(request.id);
   }
 
   /** Hard delete — confirmation-gated in the component, mistakes only. */
