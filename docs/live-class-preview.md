@@ -1,6 +1,6 @@
 # Live-class video preview
 
-When a staff member schedules a new class, the form creates an 18-second,
+When a staff member schedules a new class, the form creates a 36-second,
 muted square preview before the class is submitted. It uses the selected class,
 subject, chapter, chapter agenda/instructions, and up to eight optional photos.
 Each cut uses one fewer selected photo and shuffles the agenda/photo sequence,

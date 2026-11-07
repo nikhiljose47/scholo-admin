@@ -28,7 +28,7 @@ const WIDTH = 160;
 const HEIGHT = 160;
 const FPS = 10;
 // Slower pacing makes the small card feel like an ongoing class instead of a quick slideshow.
-const DURATION_SECONDS = 18;
+const DURATION_SECONDS = 36;
 
 /** Builds a small presentation-style preview without ever persisting frames. */
 @Injectable({ providedIn: 'root' })
@@ -54,8 +54,8 @@ export class ClassPreviewGeneratorService {
 
     try {
       const stream = canvas.captureStream(FPS);
-      // Halving the bitrate offsets the longer duration and keeps the live asset compact.
-      const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 62_000 });
+      // A modest quality lift while keeping the longer live asset below the 500 KB storage cap.
+      const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 65_000 });
       const chunks: BlobPart[] = [];
       recorder.addEventListener('dataavailable', e => { if (e.data.size) chunks.push(e.data); });
       const result = new Promise<Blob>((resolve, reject) => {
