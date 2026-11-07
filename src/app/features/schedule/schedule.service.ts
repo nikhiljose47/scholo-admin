@@ -228,6 +228,7 @@ export class ScheduleService {
     teacherName: string;
     imageSrc: string;
     liveImages?: string[];
+    livePreview?: Meeting['livePreview'];
   }): Promise<FireResponse<string>> {
     const startTs = istDateToTimestamp(data.dateStr, data.timeStr);
     const endMs = startTs.toMillis() + data.durationMinutes * 60 * 1000;
@@ -256,7 +257,8 @@ export class ScheduleService {
       imageSrc: data.imageSrc,
       attendance: [],
     };
-    if (data.liveImages?.length) doc.liveImages = data.liveImages.slice(0, 4);
+    if (data.liveImages?.length) doc.liveImages = data.liveImages.slice(0, 8);
+    if (data.livePreview) doc.livePreview = data.livePreview;
 
     const res = await this.fs.add(COLLECTION, doc);
     if (res.ok) this.invalidateScheduleCache();
@@ -271,6 +273,7 @@ export class ScheduleService {
     chapterCode?: string;
     chapterName?: string;
     liveImages?: string[];
+    livePreview?: Meeting['livePreview'];
   }): Promise<FireResponse<void>> {
     const patch: Record<string, unknown> = {};
 
@@ -285,7 +288,8 @@ export class ScheduleService {
       patch['endAt'] = Timestamp.fromMillis(startTs.toMillis() + dur * 60 * 1000);
     }
 
-    if (data.liveImages) patch['liveImages'] = data.liveImages.slice(0, 4);
+    if (data.liveImages) patch['liveImages'] = data.liveImages.slice(0, 8);
+    if (data.livePreview) patch['livePreview'] = data.livePreview;
 
     if (data.durationMinutes) patch['duration'] = data.durationMinutes;
 

@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal, computed } from '@angular/core';
+import { Component, inject, OnDestroy, OnInit, signal, computed } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, ActivatedRoute, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
@@ -7,6 +7,7 @@ import { SyllabusService } from './syllabus.service';
 import { UsersDirectoryService } from '../../core/services/users/users-directory.service';
 import { AdminAuthService } from '../../core/services/auth/admin-auth.service';
 import { UploadService, MAX_LIVE_IMAGES, slotFromUrl } from '../../core/services/storage/upload.service';
+import { ClassPreviewGeneratorService, GeneratedClassPreview } from './class-preview-generator.service';
 import { ProvidersService } from '../providers/providers.service';
 import { ClassProgressService } from '../progress/class-progress.service';
 import { UserModel } from '../../models/user/user.model';
@@ -249,12 +250,30 @@ interface ImageItem {
           <div class="field-error inline-err" *ngIf="imageError()">{{ imageError() }}</div>
         </div>
 
+        <div class="section preview-section" *ngIf="canEditImages() && !isEdit()">
+          <div class="preview-heading">
+            <div>
+              <h3>Live class preview</h3>
+              <p class="img-note">A 9-second, muted presentation video made from this class’s syllabus and your photos.</p>
+            </div>
+            <button type="button" class="preview-generate" (click)="generatePreview()" [disabled]="busy() || !canGeneratePreview()">
+              {{ generatingPreview() ? 'Making preview…' : (preview() ? 'Regenerate' : 'Generate preview') }}
+            </button>
+          </div>
+          <div class="preview-stage" *ngIf="preview() as generated">
+            <video [src]="generated.url" muted loop autoplay playsinline controls></video>
+            <div class="preview-meta">{{ generated.durationSeconds }} sec · {{ generated.width }}×{{ generated.height }} · {{ generated.fileSizeBytes / 1024 | number:'1.0-0' }} KB</div>
+          </div>
+          <p class="preview-help" *ngIf="!preview()">Choose a class, subject, and chapter, then generate a preview before scheduling.</p>
+          <div class="field-error inline-err" *ngIf="previewError()">{{ previewError() }}</div>
+        </div>
+
         <div class="form-error" *ngIf="error()">{{ error() }}</div>
 
         <div class="form-actions">
-          <a routerLink="/schedule" class="btn-cancel">{{ createdId() ? 'Skip images' : 'Cancel' }}</a>
-          <button type="submit" [disabled]="loading() || form.invalid" class="btn-submit">
-            {{ loading() ? 'Saving…' : (createdId() ? 'Retry images' : (isEdit() ? 'Save Changes' : 'Schedule Class')) }}
+          <a routerLink="/schedule" class="btn-cancel">{{ createdId() ? 'Skip media upload' : 'Cancel' }}</a>
+          <button type="submit" [disabled]="busy() || form.invalid" class="btn-submit">
+            {{ loading() ? 'Saving…' : (createdId() ? 'Retry media upload' : (isEdit() ? 'Save Changes' : 'Schedule Class')) }}
           </button>
         </div>
       </form>
@@ -376,6 +395,22 @@ interface ImageItem {
     .bar { height: 5px; background: var(--border-default); border-radius: 3px; overflow: hidden; margin-bottom: 4px; }
     .fill { height: 100%; background: var(--brand); transition: width .15s; }
 
+    /* Generated class preview: intentionally compact, like the learner card it will inhabit. */
+    .preview-section { background: linear-gradient(135deg, rgba(37,99,235,.035), transparent 62%); }
+    .preview-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+    .preview-heading h3 { margin-bottom: 5px; }
+    .preview-generate { flex-shrink: 0; border: 1px solid var(--brand); border-radius: 8px; background: var(--surface-primary); color: var(--brand); padding: 8px 10px; cursor: pointer; font: 600 12px inherit; }
+    .preview-generate:disabled { opacity: .45; cursor: not-allowed; }
+    .preview-stage { margin-top: 12px; display: flex; align-items: center; gap: 14px; padding: 10px; border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--surface-primary); }
+    .preview-stage video { width: 112px; aspect-ratio: 1; object-fit: cover; border-radius: 7px; background: #172554; }
+    .preview-meta { color: var(--text-muted); font-size: 12px; line-height: 1.45; }
+    .preview-help { margin: 10px 0 0; color: var(--text-placeholder); font-size: 12px; }
+
+    @media (max-width: 520px) {
+      .preview-heading { flex-direction: column; }
+      .preview-generate { width: 100%; }
+    }
+
     /* AM/PM switch */
     .period-switch { display: flex; border: 1px solid var(--border-default); border-radius: 8px; overflow: hidden; background: var(--surface-secondary); align-self: flex-end; }
     .period-switch button { flex: 1; padding: 9px 14px; border: none; background: transparent; font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: background .12s, color .12s; font-family: inherit; white-space: nowrap; }
@@ -434,7 +469,7 @@ interface ImageItem {
     .modal-cancel:hover { background: var(--surface-secondary); }
   `],
 })
-export class ScheduleFormComponent implements OnInit {
+export class ScheduleFormComponent implements OnInit, OnDestroy {
   private fb = inject(FormBuilder);
   private service = inject(ScheduleService);
   private syllabusService = inject(SyllabusService);
@@ -442,6 +477,7 @@ export class ScheduleFormComponent implements OnInit {
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private uploads = inject(UploadService);
+  private previewGenerator = inject(ClassPreviewGeneratorService);
   private providersService = inject(ProvidersService);
   private progressService = inject(ClassProgressService);
   auth = inject(AdminAuthService);
@@ -504,15 +540,23 @@ export class ScheduleFormComponent implements OnInit {
   imageError = signal<string | null>(null);
   classLoadError = signal(false);
   uploadProgress = signal<number | null>(null);
+  preview = signal<GeneratedClassPreview | null>(null);
+  previewError = signal<string | null>(null);
+  generatingPreview = signal(false);
+  private previewSaved = false;
   /** Set once the meeting doc exists (after create) so a retry only redoes images. */
   createdId = signal<string | null>(null);
   private meetingTeacherId = signal<string | null>(null);
   private originalSlots: number[] = [];
   private encoding = signal(false);
-  busy = computed(() => this.loading() || this.encoding());
+  busy = computed(() => this.loading() || this.encoding() || this.generatingPreview());
   /** Admins: any meeting. Teachers: only their own (create always schedules as self). */
   canEditImages = computed(() =>
     this.auth.isAdmin() || !this.isEdit() || this.meetingTeacherId() === this.auth.uid);
+  canGeneratePreview(): boolean {
+    const value = this.form.getRawValue();
+    return !!value.classId && !!value.subjectCode && !!value.chapterCode;
+  }
 
   form = this.fb.nonNullable.group({
     classId: ['', Validators.required],
@@ -717,6 +761,42 @@ export class ScheduleFormComponent implements OnInit {
     }
   }
 
+  async generatePreview() {
+    if (!this.canGeneratePreview()) {
+      this.previewError.set('Select a class, subject, and chapter first.');
+      return;
+    }
+    const v = this.form.getRawValue();
+    const className = this.classOptions().find(c => c.classId === v.classId)?.className ?? v.classId;
+    const subjectName = this.subjects().find(s => s.code === v.subjectCode)?.name ?? v.subjectCode;
+    const chapter = this.chapters().find(c => c.code === v.chapterCode) ?? this.selectedChapter();
+    if (!chapter) {
+      this.previewError.set('The selected chapter could not be found.');
+      return;
+    }
+
+    this.previewError.set(null);
+    this.generatingPreview.set(true);
+    try {
+      const generated = await this.previewGenerator.generate({
+        className,
+        subjectName,
+        chapterName: chapter.name,
+        agenda: chapter.agenda ?? [],
+        instructions: (chapter.session_instructions ?? []).map(item => item.text),
+        imageSources: this.images().map(image => image.preview),
+      });
+      const old = this.preview();
+      if (old) URL.revokeObjectURL(old.url);
+      this.preview.set(generated);
+      this.previewSaved = false;
+    } catch (e) {
+      this.previewError.set((e as Error).message || 'Could not generate the preview.');
+    } finally {
+      this.generatingPreview.set(false);
+    }
+  }
+
   removeImage(i: number) {
     const item = this.images()[i];
     if (item?.blob) URL.revokeObjectURL(item.preview);
@@ -739,7 +819,7 @@ export class ScheduleFormComponent implements OnInit {
   private async syncImages(meetingId: string): Promise<string[]> {
     const items = this.images();
     const keptSlots = new Set(items.filter(i => i.url).map(i => i.slot!));
-    const free = [1, 2, 3, 4].filter(s => !keptSlots.has(s));
+    const free = Array.from({ length: MAX_LIVE_IMAGES }, (_, i) => i + 1).filter(s => !keptSlots.has(s));
     const fresh = items.filter(i => i.blob);
 
     // Delete slots that were removed and won't be overwritten by a new upload.
@@ -788,7 +868,36 @@ export class ScheduleFormComponent implements OnInit {
     }
   }
 
-  submit() {
+  private async savePreview(meetingId: string): Promise<boolean> {
+    const preview = this.preview();
+    if (!preview || this.previewSaved) return true;
+    this.previewError.set(null);
+    this.uploadProgress.set(0);
+    try {
+      const url = await this.uploads.uploadLivePreview(meetingId, preview.blob, preview.mimeType, fraction => this.uploadProgress.set(fraction));
+      const res = await this.service.updateMeeting(meetingId, {
+        livePreview: {
+          url,
+          mimeType: preview.mimeType,
+          durationSeconds: preview.durationSeconds,
+          width: preview.width,
+          height: preview.height,
+          fps: preview.fps,
+          fileSizeBytes: preview.fileSizeBytes,
+        },
+      });
+      if (!res.ok) throw new Error(res.message ?? 'Could not save the video link');
+      this.previewSaved = true;
+      return true;
+    } catch (e) {
+      this.previewError.set(`Video upload failed: ${(e as Error).message}. The class is saved; press “Retry video upload” to try again.`);
+      return false;
+    } finally {
+      this.uploadProgress.set(null);
+    }
+  }
+
+  async submit() {
     if (this.form.invalid) return;
     this.error.set(null);
 
@@ -805,6 +914,12 @@ export class ScheduleFormComponent implements OnInit {
     if (this.isEdit()) {
       this.doSave();
       return;
+    }
+
+    // A new class always gets its generated preview before confirmation.
+    if (!this.preview()) {
+      await this.generatePreview();
+      if (!this.preview()) return;
     }
 
     // New schedule: show in-app confirmation modal.
@@ -835,12 +950,13 @@ export class ScheduleFormComponent implements OnInit {
   private async doSave() {
     const v = this.form.getRawValue();
     const meetingId = this.route.snapshot.paramMap.get('meetingId');
-    const wantsImages = this.canEditImages() && (this.images().length > 0 || this.originalSlots.length > 0);
+    const wantsImages = this.canEditImages() && !this.preview() && (this.images().length > 0 || this.originalSlots.length > 0);
 
     const existingId = this.createdId();
     if (existingId) {
       this.loading.set(true);
-      if (await this.saveImages(existingId)) this.router.navigate(['/schedule']);
+      const previewSaved = await this.savePreview(existingId);
+      if (previewSaved && (!wantsImages || await this.saveImages(existingId))) this.router.navigate(['/schedule']);
       this.loading.set(false);
       return;
     }
@@ -858,7 +974,8 @@ export class ScheduleFormComponent implements OnInit {
         chapterName: chapter?.name,
       });
       if (res.ok) {
-        if (wantsImages && !(await this.saveImages(meetingId))) {
+        const previewSaved = await this.savePreview(meetingId);
+        if (!previewSaved || (wantsImages && !(await this.saveImages(meetingId)))) {
           this.createdId.set(meetingId);
         } else {
           this.router.navigate(['/schedule']);
@@ -892,15 +1009,26 @@ export class ScheduleFormComponent implements OnInit {
         imageSrc: '',
       });
       if (res.ok) {
-        if (wantsImages && res.data && !(await this.saveImages(res.data))) {
-          this.createdId.set(res.data);
+        if (!res.data) {
+          this.error.set('The class was created but its id was not returned.');
         } else {
-          this.router.navigate(['/schedule']);
+          const previewSaved = await this.savePreview(res.data);
+          if (!previewSaved || (wantsImages && !(await this.saveImages(res.data)))) {
+            this.createdId.set(res.data);
+          } else {
+            this.router.navigate(['/schedule']);
+          }
         }
       } else {
         this.error.set(res.message ?? 'Failed to schedule class');
       }
     }
     this.loading.set(false);
+  }
+
+  ngOnDestroy() {
+    const preview = this.preview();
+    if (preview) URL.revokeObjectURL(preview.url);
+    for (const image of this.images()) if (image.blob) URL.revokeObjectURL(image.preview);
   }
 }

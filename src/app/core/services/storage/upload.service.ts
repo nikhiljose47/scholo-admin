@@ -3,7 +3,7 @@ import {
   Storage, ref, uploadBytesResumable, getDownloadURL, deleteObject,
 } from '@angular/fire/storage';
 
-export const MAX_LIVE_IMAGES = 4;
+export const MAX_LIVE_IMAGES = 8;
 const MAX_LONG_SIDE = 720;
 const MAX_AVATAR_SIDE = 256;
 const TARGET_BYTES = 150 * 1024;
@@ -14,14 +14,19 @@ export function avatarPath(uid: string): string {
   return `users/${uid}/avatar.webp`;
 }
 
-/** Storage path for one image slot (1..4) of a meeting. Fixed so cleanup is a prefix rule. */
+/** Storage path for one image slot (1..8) of a meeting. Fixed so cleanup is a prefix rule. */
 export function liveImagePath(meetingId: string, slot: number): string {
   return `live-class/${meetingId}/${slot}.webp`;
 }
 
+/** One generated presentation video for a live class. */
+export function livePreviewPath(meetingId: string, extension: 'webm' | 'mp4'): string {
+  return `live-class/${meetingId}/preview.${extension}`;
+}
+
 /** Recover the slot number from a download URL, or null if it isn't one of ours. */
 export function slotFromUrl(url: string): number | null {
-  const m = /live-class(?:%2F|\/)[^/?%]+(?:%2F|\/)([1-4])\.webp/.exec(url);
+  const m = /live-class(?:%2F|\/)[^/?%]+(?:%2F|\/)([1-8])\.webp/.exec(url);
   return m ? Number(m[1]) : null;
 }
 
@@ -78,6 +83,28 @@ export class UploadService {
   ): Promise<string> {
     const task = uploadBytesResumable(ref(this.storage, liveImagePath(meetingId, slot)), blob, {
       contentType: 'image/webp',
+      cacheControl: 'public,max-age=3600',
+    });
+    return new Promise<string>((resolve, reject) => {
+      task.on(
+        'state_changed',
+        s => onProgress?.(s.totalBytes ? s.bytesTransferred / s.totalBytes : 0),
+        err => reject(err),
+        () => getDownloadURL(task.snapshot.ref).then(resolve, reject),
+      );
+    });
+  }
+
+  /** Upload the generated class preview as one short muted video. */
+  uploadLivePreview(
+    meetingId: string,
+    blob: Blob,
+    mimeType: string,
+    onProgress?: (fraction: number) => void,
+  ): Promise<string> {
+    const extension: 'webm' | 'mp4' = mimeType.includes('mp4') ? 'mp4' : 'webm';
+    const task = uploadBytesResumable(ref(this.storage, livePreviewPath(meetingId, extension)), blob, {
+      contentType: mimeType,
       cacheControl: 'public,max-age=3600',
     });
     return new Promise<string>((resolve, reject) => {

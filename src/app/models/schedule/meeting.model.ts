@@ -25,8 +25,18 @@ export interface Meeting {
   teacherName: string;
   isFree?: boolean;
   imageSrc: string;
-  /** 1-4 temporary thumbnail URLs (Storage live-class/{id}/n.webp); absent on legacy docs. */
+  /** 1-8 temporary source image URLs (Storage live-class/{id}/n.webp); absent on legacy docs. */
   liveImages?: string[];
+  /** Generated muted presentation preview for the live-class card; absent on legacy docs. */
+  livePreview?: {
+    url: string;
+    mimeType: string;
+    durationSeconds: number;
+    width: number;
+    height: number;
+    fps: number;
+    fileSizeBytes: number;
+  };
   attendance: string[];  // studentUids; managed by Worker RSVP
   /** Private teacher notes saved on session submit. */
   feedback?: string;
