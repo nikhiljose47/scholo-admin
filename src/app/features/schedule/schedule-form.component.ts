@@ -271,10 +271,14 @@ interface ImageItem {
 
         <div class="form-error" *ngIf="error()">{{ error() }}</div>
 
+        <div class="preview-build-progress" *ngIf="generatingPreview() && previewProgress() !== null">
+          <div class="preview-build-track"><div class="preview-build-fill" [style.width.%]="(previewProgress() ?? 0) * 100"></div></div>
+          <span>{{ previewStatus() }} · {{ ((previewProgress() ?? 0) * 100) | number:'1.0-0' }}%</span>
+        </div>
         <div class="form-actions">
           <a routerLink="/schedule" class="btn-cancel">{{ createdId() ? 'Skip media upload' : 'Cancel' }}</a>
           <button type="submit" [disabled]="busy() || form.invalid" class="btn-submit">
-            {{ loading() ? 'Saving…' : (generatingPreview() ? 'Making preview…' : (createdId() ? 'Retry media upload' : (isEdit() ? 'Save Changes' : 'Schedule Class'))) }}
+            {{ loading() ? 'Saving…' : (createdId() ? 'Retry media upload' : (isEdit() ? 'Save Changes' : 'Schedule Class')) }}
           </button>
         </div>
       </form>
@@ -360,6 +364,10 @@ interface ImageItem {
     }
     .inline-err { margin: 8px 0 0; }
 
+    .preview-build-progress { padding: 8px 22px 0; border-top: 1px solid var(--border-subtle); }
+    .preview-build-track { height: 2px; overflow: hidden; background: var(--border-default); }
+    .preview-build-fill { height: 100%; background: var(--brand); }
+    .preview-build-progress span { display: block; margin-top: 5px; color: var(--text-placeholder); font-size: 10px; }
     .form-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 22px; }
 
     .btn-cancel {
@@ -402,7 +410,7 @@ interface ImageItem {
     .preview-heading h3 { margin-bottom: 5px; }
     .preview-generate { flex-shrink: 0; border: 1px solid var(--brand); border-radius: 8px; background: var(--surface-primary); color: var(--brand); padding: 8px 10px; cursor: pointer; font: 600 12px inherit; }
     .preview-generate:disabled { opacity: .45; cursor: not-allowed; }
-    .preview-stage { margin-top: 12px; display: flex; align-items: center; gap: 14px; padding: 10px; border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--surface-primary); }
+    .preview-stage { display: flex; align-items: center; gap: 14px; padding: 10px; border: 1px solid var(--border-subtle); border-radius: 10px; }
     .preview-stage video { width: 112px; aspect-ratio: 1; object-fit: cover; border-radius: 7px; background: #172554; }
     .preview-meta { color: var(--text-muted); font-size: 12px; line-height: 1.45; }
     .preview-help { margin: 10px 0 0; color: var(--text-placeholder); font-size: 12px; }
@@ -545,6 +553,8 @@ export class ScheduleFormComponent implements OnInit, OnDestroy {
   preview = signal<GeneratedClassPreview | null>(null);
   previewError = signal<string | null>(null);
   generatingPreview = signal(false);
+  previewProgress = signal<number | null>(null);
+  previewStatus = signal('Rendering video');
   private previewSaved = false;
   /** Set once the meeting doc exists (after create) so a retry only redoes images. */
   createdId = signal<string | null>(null);
@@ -779,6 +789,8 @@ export class ScheduleFormComponent implements OnInit, OnDestroy {
 
     this.previewError.set(null);
     this.generatingPreview.set(true);
+    this.previewProgress.set(0);
+    this.previewStatus.set('Preparing slides');
     try {
       const generated = await this.previewGenerator.generate({
         className,
@@ -789,6 +801,9 @@ export class ScheduleFormComponent implements OnInit, OnDestroy {
         // Use each new image blob directly. A blob URL can fail to be fetched
         // in some browsers before it has been uploaded to Firebase Storage.
         imageSources: this.images().map(image => image.blob ?? image.preview),
+      }, fraction => {
+        this.previewStatus.set('Rendering video');
+        this.previewProgress.set(fraction);
       });
       const old = this.preview();
       if (old) URL.revokeObjectURL(old.url);
@@ -797,6 +812,7 @@ export class ScheduleFormComponent implements OnInit, OnDestroy {
     } catch (e) {
       this.previewError.set((e as Error).message || 'Could not generate the preview.');
     } finally {
+      this.previewProgress.set(null);
       this.generatingPreview.set(false);
     }
   }

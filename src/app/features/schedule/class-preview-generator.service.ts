@@ -34,7 +34,7 @@ const DURATION_SECONDS = 36;
 /** Builds a small presentation-style preview without ever persisting frames. */
 @Injectable({ providedIn: 'root' })
 export class ClassPreviewGeneratorService {
-  async generate(input: ClassPreviewInput): Promise<GeneratedClassPreview> {
+  async generate(input: ClassPreviewInput, onProgress?: (fraction: number) => void): Promise<GeneratedClassPreview> {
     if (!('MediaRecorder' in window) || !HTMLCanvasElement.prototype.captureStream) {
       throw new Error('This browser cannot create a video preview. Use a recent Chrome, Edge, or Safari browser.');
     }
@@ -69,6 +69,7 @@ export class ClassPreviewGeneratorService {
       await new Promise<void>((resolve) => {
         const render = (now: number) => {
           const elapsed = Math.min((now - startedAt) / 1000, DURATION_SECONDS);
+          onProgress?.(elapsed / DURATION_SECONDS);
           this.draw(ctx, slides, elapsed / DURATION_SECONDS);
           if (elapsed < DURATION_SECONDS) requestAnimationFrame(render);
           else resolve();
@@ -123,12 +124,15 @@ export class ClassPreviewGeneratorService {
   }
 
   private draw(ctx: CanvasRenderingContext2D, slides: Slide[], progress: number): void {
-    const position = progress * slides.length;
-    const index = Math.min(slides.length - 1, Math.floor(position));
+    if (!slides.length) return;
+    const position = Math.min(Math.max(progress, 0) * slides.length, slides.length - Number.EPSILON);
+    const index = Math.max(0, Math.min(slides.length - 1, Math.floor(position)));
     const local = position - Math.floor(position);
     const fade = local > .78 ? (local - .78) / .22 : 0;
-    this.drawSlide(ctx, slides[index], local, 1);
-    if (fade) this.drawSlide(ctx, slides[(index + 1) % slides.length], local, fade);
+    const current = slides[index] ?? slides[0];
+    const next = slides[(index + 1) % slides.length] ?? current;
+    this.drawSlide(ctx, current, local, 1);
+    if (fade) this.drawSlide(ctx, next, local, fade);
   }
 
   private drawSlide(ctx: CanvasRenderingContext2D, slide: Slide, local: number, alpha: number): void {
