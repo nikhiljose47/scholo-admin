@@ -784,7 +784,9 @@ export class ScheduleFormComponent implements OnInit, OnDestroy {
         chapterName: chapter.name,
         agenda: chapter.agenda ?? [],
         instructions: (chapter.session_instructions ?? []).map(item => item.text),
-        imageSources: this.images().map(image => image.preview),
+        // Use each new image blob directly. A blob URL can fail to be fetched
+        // in some browsers before it has been uploaded to Firebase Storage.
+        imageSources: this.images().map(image => image.blob ?? image.preview),
       });
       const old = this.preview();
       if (old) URL.revokeObjectURL(old.url);

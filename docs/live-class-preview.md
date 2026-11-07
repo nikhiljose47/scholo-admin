@@ -34,6 +34,10 @@ the regular `imageSrc` if the field is absent, the video fails to load, or the
 viewer prefers reduced motion. Do not autoplay more than the cards currently
 visible on screen.
 
+If the card needs a slower, calmer feel without creating a larger upload, set
+the video element's `playbackRate` after its metadata has loaded. Use `0.75` as
+the default; do not go below `0.5` for a live-card loop.
+
 The preview is intentionally temporary: it lives under `live-class/`, which may
 already have a one-day storage lifecycle policy. If previews should remain after
 the live session, move them to a permanent storage prefix and update the rules

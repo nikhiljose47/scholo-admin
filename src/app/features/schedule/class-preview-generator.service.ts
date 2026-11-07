@@ -6,7 +6,8 @@ export interface ClassPreviewInput {
   chapterName: string;
   agenda: string[];
   instructions: string[];
-  imageSources: string[];
+  /** New uploads are supplied as blobs so they work before any storage upload. */
+  imageSources: Array<string | Blob>;
 }
 
 export interface GeneratedClassPreview {
@@ -55,7 +56,7 @@ export class ClassPreviewGeneratorService {
     try {
       const stream = canvas.captureStream(FPS);
       // A modest quality lift while keeping the longer live asset below the 500 KB storage cap.
-      const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 65_000 });
+      const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 68_000 });
       const chunks: BlobPart[] = [];
       recorder.addEventListener('dataavailable', e => { if (e.data.size) chunks.push(e.data); });
       const result = new Promise<Blob>((resolve, reject) => {
@@ -88,8 +89,9 @@ export class ClassPreviewGeneratorService {
     return candidates.find(type => MediaRecorder.isTypeSupported(type)) ?? null;
   }
 
-  private async loadImages(sources: string[]): Promise<ImageBitmap[]> {
+  private async loadImages(sources: Array<string | Blob>): Promise<ImageBitmap[]> {
     const results = await Promise.allSettled(sources.map(async source => {
+      if (source instanceof Blob) return createImageBitmap(source);
       const response = await fetch(source);
       if (!response.ok) throw new Error('Image could not be loaded');
       return createImageBitmap(await response.blob());
@@ -101,7 +103,6 @@ export class ClassPreviewGeneratorService {
     const text = (value: string) => value.replace(/\s+/g, ' ').trim().slice(0, 74);
     const slides: Slide[] = [
       { kind: 'text', heading: input.className || 'Live class', body: text(input.subjectName || 'Learning together') },
-      { kind: 'text', heading: input.chapterName || 'Today’s lesson', body: 'Class is starting soon' },
     ];
     for (const agenda of this.shuffle(input.agenda.filter(Boolean)).slice(0, 3)) slides.push({ kind: 'text', heading: input.chapterName || 'Today’s lesson', body: text(agenda) });
     for (const instruction of input.instructions.filter(Boolean).slice(0, 1)) slides.push({ kind: 'text', heading: 'In this class', body: text(instruction) });
