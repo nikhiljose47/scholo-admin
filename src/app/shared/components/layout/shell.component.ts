@@ -352,7 +352,6 @@ export class ShellComponent {
     { label: 'Teachers',        icon: 'person',       path: '/teachers',     adminOnly: true },
     { label: 'Students',        icon: 'academic-cap', path: '/students',     adminOnly: true },
     { label: 'Analytics',       icon: 'chart-bar',    path: '/analytics' },
-    { label: 'Profile',         icon: 'person',       path: '/profile' },
   ];
 
   visibleNavItems = computed(() =>
