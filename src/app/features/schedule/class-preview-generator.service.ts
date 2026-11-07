@@ -27,7 +27,8 @@ type Slide =
 const WIDTH = 160;
 const HEIGHT = 160;
 const FPS = 10;
-const DURATION_SECONDS = 9;
+// Slower pacing makes the small card feel like an ongoing class instead of a quick slideshow.
+const DURATION_SECONDS = 18;
 
 /** Builds a small presentation-style preview without ever persisting frames. */
 @Injectable({ providedIn: 'root' })
@@ -53,7 +54,8 @@ export class ClassPreviewGeneratorService {
 
     try {
       const stream = canvas.captureStream(FPS);
-      const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 105_000 });
+      // Halving the bitrate offsets the longer duration and keeps the live asset compact.
+      const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 62_000 });
       const chunks: BlobPart[] = [];
       recorder.addEventListener('dataavailable', e => { if (e.data.size) chunks.push(e.data); });
       const result = new Promise<Blob>((resolve, reject) => {
@@ -101,10 +103,25 @@ export class ClassPreviewGeneratorService {
       { kind: 'text', heading: input.className || 'Live class', body: text(input.subjectName || 'Learning together') },
       { kind: 'text', heading: input.chapterName || 'Today’s lesson', body: 'Class is starting soon' },
     ];
-    for (const agenda of input.agenda.filter(Boolean).slice(0, 3)) slides.push({ kind: 'text', heading: input.chapterName || 'Today’s lesson', body: text(agenda) });
+    for (const agenda of this.shuffle(input.agenda.filter(Boolean)).slice(0, 3)) slides.push({ kind: 'text', heading: input.chapterName || 'Today’s lesson', body: text(agenda) });
     for (const instruction of input.instructions.filter(Boolean).slice(0, 1)) slides.push({ kind: 'text', heading: 'In this class', body: text(instruction) });
-    for (const image of images) slides.push({ kind: 'image', image, heading: input.chapterName || 'Live class', body: input.subjectName || input.className });
+    // Keep one selected image out of each cut. It prevents visual overload and
+    // makes each regenerated version visibly different while retaining a photo
+    // when only one is available.
+    const imageCount = Math.max(1, images.length - 1);
+    for (const image of this.shuffle(images).slice(0, imageCount)) {
+      slides.push({ kind: 'image', image, heading: input.chapterName || 'Live class', body: input.subjectName || input.className });
+    }
     return slides;
+  }
+
+  private shuffle<T>(items: T[]): T[] {
+    const copy = [...items];
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
   }
 
   private draw(ctx: CanvasRenderingContext2D, slides: Slide[], progress: number): void {

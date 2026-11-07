@@ -254,10 +254,10 @@ interface ImageItem {
           <div class="preview-heading">
             <div>
               <h3>Live class preview</h3>
-              <p class="img-note">A 9-second, muted presentation video made from this class’s syllabus and your photos.</p>
+              <p class="img-note">An 18-second, muted presentation video made from this class’s syllabus and your photos.</p>
             </div>
             <button type="button" class="preview-generate" (click)="generatePreview()" [disabled]="busy() || !canGeneratePreview()">
-              {{ generatingPreview() ? 'Making preview…' : (preview() ? 'Regenerate' : 'Generate preview') }}
+              {{ generatingPreview() ? 'Making preview…' : (preview() ? 'Generate another version' : 'Generate preview') }}
             </button>
           </div>
           <div class="preview-stage" *ngIf="preview() as generated">

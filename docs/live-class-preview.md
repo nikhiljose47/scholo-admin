@@ -1,8 +1,10 @@
 # Live-class video preview
 
-When a staff member schedules a new class, the form creates a nine-second,
+When a staff member schedules a new class, the form creates an 18-second,
 muted square preview before the class is submitted. It uses the selected class,
 subject, chapter, chapter agenda/instructions, and up to eight optional photos.
+Each cut uses one fewer selected photo and shuffles the agenda/photo sequence,
+so “Generate another version” produces a noticeably different preview.
 
 The admin browser renders the presentation directly to a 160 x 160 canvas and
 records it at 10 FPS. No intermediate frames are stored. The resulting video is
