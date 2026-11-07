@@ -227,8 +227,13 @@ interface ImageItem {
 
         <!-- Live-class thumbnail images -->
         <div class="section" *ngIf="canEditImages()">
-          <h3>Live images <span class="section-hint">(optional, up to {{ maxImages }})</span></h3>
-          <p class="img-note">Add photos if you want them included in the generated live-class preview.</p>
+          <div class="images-heading">
+            <h3>Class visuals <span class="section-hint">(optional: add up to {{ maxImages }} photos)</span></h3>
+            <button type="button" class="preview-generate" (click)="generatePreview()" [disabled]="busy() || !canGeneratePreview()">
+              {{ preview() ? 'Generate another version' : 'Generate preview' }}
+            </button>
+          </div>
+          <p class="img-note">Eight visuals total; we create the rest.</p>
           <div class="img-grid">
             <div class="img-item" *ngFor="let img of images(); let i = index">
               <img [src]="img.preview" alt="Live class image {{ i + 1 }}" />
@@ -249,18 +254,6 @@ interface ImageItem {
             <small>Uploading… {{ ((uploadProgress() ?? 0) * 100) | number:'1.0-0' }}%</small>
           </div>
           <div class="field-error inline-err" *ngIf="imageError()">{{ imageError() }}</div>
-        </div>
-
-        <div class="section preview-section" *ngIf="canEditImages() && !isEdit()">
-          <div class="preview-heading">
-            <div>
-              <h3>Live class preview</h3>
-              <p class="img-note">A 36-second, muted presentation video made from this class’s syllabus and your photos.</p>
-            </div>
-            <button type="button" class="preview-generate" (click)="generatePreview()" [disabled]="busy() || !canGeneratePreview()">
-              {{ generatingPreview() ? 'Making preview…' : (preview() ? 'Generate another version' : 'Generate preview') }}
-            </button>
-          </div>
           <div class="preview-stage" *ngIf="preview() as generated">
             <video [src]="generated.url" muted loop autoplay playsinline controls></video>
             <div class="preview-meta">{{ generated.durationSeconds }} sec · {{ generated.width }}×{{ generated.height }} · {{ generated.fileSizeBytes / 1024 | number:'1.0-0' }} KB</div>
@@ -405,9 +398,8 @@ interface ImageItem {
     .fill { height: 100%; background: var(--brand); transition: width .15s; }
 
     /* Generated class preview: intentionally compact, like the learner card it will inhabit. */
-    .preview-section { background: linear-gradient(135deg, rgba(37,99,235,.035), transparent 62%); }
-    .preview-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-    .preview-heading h3 { margin-bottom: 5px; }
+    .images-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+    .images-heading h3 { margin-bottom: 5px; }
     .preview-generate { flex-shrink: 0; border: 1px solid var(--brand); border-radius: 8px; background: var(--surface-primary); color: var(--brand); padding: 8px 10px; cursor: pointer; font: 600 12px inherit; }
     .preview-generate:disabled { opacity: .45; cursor: not-allowed; }
     .preview-stage { display: flex; align-items: center; gap: 14px; padding: 10px; border: 1px solid var(--border-subtle); border-radius: 10px; }
@@ -416,7 +408,7 @@ interface ImageItem {
     .preview-help { margin: 10px 0 0; color: var(--text-placeholder); font-size: 12px; }
 
     @media (max-width: 520px) {
-      .preview-heading { flex-direction: column; }
+      .images-heading { flex-direction: column; }
       .preview-generate { width: 100%; }
     }
 

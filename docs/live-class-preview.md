@@ -3,8 +3,9 @@
 When a staff member schedules a new class, the form creates a 36-second,
 muted square preview before the class is submitted. It uses the selected class,
 subject, chapter, chapter agenda/instructions, and up to eight optional photos.
-Every selected photo is included, while the agenda/photo sequence is shuffled,
-so “Generate another version” produces a noticeably different preview.
+Each video contains exactly eight visual scenes: every selected photo is included,
+then locally rendered lesson cards fill the remaining scenes. The agenda/photo
+sequence is shuffled, so “Generate another version” looks different.
 
 The admin browser renders the presentation directly to a 160 x 160 canvas and
 records it at 10 FPS. No intermediate frames are stored. The resulting video is

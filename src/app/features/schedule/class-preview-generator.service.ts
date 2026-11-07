@@ -102,16 +102,26 @@ export class ClassPreviewGeneratorService {
 
   private buildSlides(input: ClassPreviewInput, images: ImageBitmap[]): Slide[] {
     const text = (value: string) => value.replace(/\s+/g, ' ').trim().slice(0, 74);
-    const slides: Slide[] = [
+    const slides: Slide[] = this.shuffle(images).map(image => ({
+      kind: 'image' as const,
+      image,
+      heading: input.chapterName || 'Live class',
+      body: input.subjectName || input.className,
+    }));
+    const generated: Slide[] = [
       { kind: 'text', heading: input.className || 'Live class', body: text(input.subjectName || 'Learning together') },
+      { kind: 'text', heading: input.chapterName || 'Today’s lesson', body: text(input.subjectName || input.className || 'Learning together') },
+      ...this.shuffle(input.agenda.filter(Boolean)).map(body => ({ kind: 'text' as const, heading: input.chapterName || 'Learning focus', body: text(body) })),
+      ...this.shuffle(input.instructions.filter(Boolean)).map(body => ({ kind: 'text' as const, heading: 'In this class', body: text(body) })),
     ];
-    for (const agenda of this.shuffle(input.agenda.filter(Boolean)).slice(0, 3)) slides.push({ kind: 'text', heading: input.chapterName || 'Today’s lesson', body: text(agenda) });
-    for (const instruction of input.instructions.filter(Boolean).slice(0, 1)) slides.push({ kind: 'text', heading: 'In this class', body: text(instruction) });
-    // Every selected photo is used; their order changes on each new version.
-    for (const image of this.shuffle(images)) {
-      slides.push({ kind: 'image', image, heading: input.chapterName || 'Live class', body: input.subjectName || input.className });
+    // Always use eight scenes. Photos take priority; the canvas creates the
+    // remaining visual lesson cards locally, so no extra image files are stored.
+    let cursor = 0;
+    while (slides.length < 8) {
+      slides.push(generated[cursor % generated.length]);
+      cursor++;
     }
-    return slides;
+    return this.shuffle(slides).slice(0, 8);
   }
 
   private shuffle<T>(items: T[]): T[] {
