@@ -51,6 +51,7 @@ interface ImageItem {
           </svg>
         </div>
         <h2 class="modal-title">Confirm Schedule</h2>
+        <video *ngIf="preview() as generated" class="modal-preview" [src]="generated.url" muted loop autoplay playsinline controls></video>
         <div class="modal-rows">
           <div class="modal-row">
             <span class="mrow-label">Class</span>
@@ -227,7 +228,7 @@ interface ImageItem {
         <!-- Live-class thumbnail images -->
         <div class="section" *ngIf="canEditImages()">
           <h3>Live images <span class="section-hint">(optional, up to {{ maxImages }})</span></h3>
-          <p class="img-note">Shown as an animated thumbnail while the class is live.</p>
+          <p class="img-note">Add photos if you want them included in the generated live-class preview.</p>
           <div class="img-grid">
             <div class="img-item" *ngFor="let img of images(); let i = index">
               <img [src]="img.preview" alt="Live class image {{ i + 1 }}" />
@@ -273,7 +274,7 @@ interface ImageItem {
         <div class="form-actions">
           <a routerLink="/schedule" class="btn-cancel">{{ createdId() ? 'Skip media upload' : 'Cancel' }}</a>
           <button type="submit" [disabled]="busy() || form.invalid" class="btn-submit">
-            {{ loading() ? 'Saving…' : (createdId() ? 'Retry media upload' : (isEdit() ? 'Save Changes' : 'Schedule Class')) }}
+            {{ loading() ? 'Saving…' : (generatingPreview() ? 'Making preview…' : (createdId() ? 'Retry media upload' : (isEdit() ? 'Save Changes' : 'Schedule Class'))) }}
           </button>
         </div>
       </form>
@@ -447,6 +448,7 @@ interface ImageItem {
     }
 
     .modal-title { margin: 0; font-size: 17px; font-weight: 700; color: var(--text-primary); }
+    .modal-preview { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 10px; background: #172554; }
 
     .modal-rows { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border-subtle); border-radius: 10px; overflow: hidden; }
     .modal-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 9px 14px; border-bottom: 1px solid var(--border-subtle); }

@@ -3,7 +3,7 @@
 When a staff member schedules a new class, the form creates a 36-second,
 muted square preview before the class is submitted. It uses the selected class,
 subject, chapter, chapter agenda/instructions, and up to eight optional photos.
-Each cut uses one fewer selected photo and shuffles the agenda/photo sequence,
+Every selected photo is included, while the agenda/photo sequence is shuffled,
 so “Generate another version” produces a noticeably different preview.
 
 The admin browser renders the presentation directly to a 160 x 160 canvas and

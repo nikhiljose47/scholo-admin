@@ -106,11 +106,8 @@ export class ClassPreviewGeneratorService {
     ];
     for (const agenda of this.shuffle(input.agenda.filter(Boolean)).slice(0, 3)) slides.push({ kind: 'text', heading: input.chapterName || 'Today’s lesson', body: text(agenda) });
     for (const instruction of input.instructions.filter(Boolean).slice(0, 1)) slides.push({ kind: 'text', heading: 'In this class', body: text(instruction) });
-    // Keep one selected image out of each cut. It prevents visual overload and
-    // makes each regenerated version visibly different while retaining a photo
-    // when only one is available.
-    const imageCount = Math.max(1, images.length - 1);
-    for (const image of this.shuffle(images).slice(0, imageCount)) {
+    // Every selected photo is used; their order changes on each new version.
+    for (const image of this.shuffle(images)) {
       slides.push({ kind: 'image', image, heading: input.chapterName || 'Live class', body: input.subjectName || input.className });
     }
     return slides;
