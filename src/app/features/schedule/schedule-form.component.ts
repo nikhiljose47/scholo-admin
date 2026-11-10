@@ -243,7 +243,7 @@ interface ImageItem {
           </div>
           <p class="img-note">Eight visuals total; we create the rest.</p>
           <div class="preview-build-progress" *ngIf="generatingPreview() && previewProgress() !== null">
-            <div class="preview-build-track"><div class="preview-build-fill" [style.width.%]="(previewProgress() ?? 0) * 100"></div></div>
+            <div class="bar"><div class="fill" [style.width.%]="(previewProgress() ?? 0) * 100"></div></div>
             <span>{{ previewStatus() }}</span>
           </div>
           <div class="img-grid">
@@ -361,8 +361,7 @@ interface ImageItem {
     .inline-err { margin: 8px 0 0; }
 
     .preview-build-progress { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
-    .preview-build-track { width: 56px; flex-shrink: 0; height: 5px; border-radius: 3px; overflow: hidden; background: var(--border-default); }
-    .preview-build-fill { height: 100%; background: var(--brand); border-radius: 3px; transition: width .2s ease; }
+    .preview-build-progress .bar { width: 56px; flex-shrink: 0; margin-bottom: 0; }
     .preview-build-progress span { color: var(--text-muted); font-size: 12px; }
     .form-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 22px; }
 
@@ -400,7 +399,6 @@ interface ImageItem {
     .bar { height: 5px; background: var(--border-default); border-radius: 3px; overflow: hidden; margin-bottom: 4px; }
     .fill { height: 100%; background: var(--brand); transition: width .15s; }
 
-    /* Generated class preview: intentionally compact, like the learner card it will inhabit. */
     .images-heading { display: flex; align-items: center; gap: 12px; }
     .images-heading h3 { margin: 0; flex-shrink: 0; }
     .preview-generate { flex-shrink: 0; margin-left: auto; border: 1px solid var(--brand); border-radius: 8px; background: var(--surface-primary); color: var(--brand); padding: 7px 10px; cursor: pointer; font: 600 12px inherit; }
