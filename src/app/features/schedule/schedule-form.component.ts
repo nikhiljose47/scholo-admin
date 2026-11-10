@@ -242,6 +242,10 @@ interface ImageItem {
             </button>
           </div>
           <p class="img-note">Eight visuals total; we create the rest.</p>
+          <div class="preview-build-progress" *ngIf="generatingPreview() && previewProgress() !== null">
+            <div class="preview-build-track"><div class="preview-build-fill" [style.width.%]="(previewProgress() ?? 0) * 100"></div></div>
+            <span>{{ previewStatus() }}</span>
+          </div>
           <div class="img-grid">
             <div class="img-item" *ngFor="let img of images(); let i = index">
               <img [src]="img.preview" alt="Live class image {{ i + 1 }}" />
@@ -267,11 +271,6 @@ interface ImageItem {
         </div>
 
         <div class="form-error" *ngIf="error()">{{ error() }}</div>
-
-        <div class="preview-build-progress" *ngIf="generatingPreview() && previewProgress() !== null">
-          <div class="preview-build-track"><div class="preview-build-fill" [style.width.%]="(previewProgress() ?? 0) * 100"></div></div>
-          <span>{{ previewStatus() }} · {{ ((previewProgress() ?? 0) * 100) | number:'1.0-0' }}%</span>
-        </div>
         <div class="form-actions">
           <a routerLink="/schedule" class="btn-cancel">{{ createdId() ? 'Skip media upload' : 'Cancel' }}</a>
           <button type="submit" [disabled]="busy() || form.invalid" class="btn-submit">
@@ -361,10 +360,10 @@ interface ImageItem {
     }
     .inline-err { margin: 8px 0 0; }
 
-    .preview-build-progress { padding: 8px 22px 0; border-top: 1px solid var(--border-subtle); }
-    .preview-build-track { height: 2px; overflow: hidden; background: var(--border-default); }
-    .preview-build-fill { height: 100%; background: var(--brand); }
-    .preview-build-progress span { display: block; margin-top: 5px; color: var(--text-placeholder); font-size: 10px; }
+    .preview-build-progress { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
+    .preview-build-track { width: 56px; flex-shrink: 0; height: 5px; border-radius: 3px; overflow: hidden; background: var(--border-default); }
+    .preview-build-fill { height: 100%; background: var(--brand); border-radius: 3px; transition: width .2s ease; }
+    .preview-build-progress span { color: var(--text-muted); font-size: 12px; }
     .form-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 22px; }
 
     .btn-cancel {
@@ -793,7 +792,7 @@ export class ScheduleFormComponent implements OnInit, OnDestroy {
     this.previewError.set(null);
     this.generatingPreview.set(true);
     this.previewProgress.set(0);
-    this.previewStatus.set('Preparing slides');
+    this.previewStatus.set('Sketching your slides ✍️');
     try {
       const generated = await this.previewGenerator.generate({
         className,
@@ -805,7 +804,7 @@ export class ScheduleFormComponent implements OnInit, OnDestroy {
         // in some browsers before it has been uploaded to Firebase Storage.
         imageSources: this.images().map(image => image.blob ?? image.preview),
       }, fraction => {
-        this.previewStatus.set('Rendering video');
+        this.previewStatus.set(this.previewStatusFor(fraction));
         this.previewProgress.set(fraction);
       });
       const old = this.preview();
@@ -818,6 +817,15 @@ export class ScheduleFormComponent implements OnInit, OnDestroy {
       this.previewProgress.set(null);
       this.generatingPreview.set(false);
     }
+  }
+
+  /** Cute, staged status copy so the short wait still feels alive. */
+  private previewStatusFor(fraction: number): string {
+    if (fraction < 0.2) return 'Mixing in your photos 📸';
+    if (fraction < 0.45) return 'Animating slide transitions 🎬';
+    if (fraction < 0.75) return 'Polishing the pixels ✨';
+    if (fraction < 0.95) return 'Adding the finishing touches 🎀';
+    return 'Almost ready! 🎉';
   }
 
   removeImage(i: number) {

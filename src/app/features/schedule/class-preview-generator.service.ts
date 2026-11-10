@@ -28,8 +28,10 @@ type Slide =
 const WIDTH = 160;
 const HEIGHT = 160;
 const FPS = 10;
-// Slower pacing makes the small card feel like an ongoing class instead of a quick slideshow.
-const DURATION_SECONDS = 36;
+// Recording happens in real time (MediaRecorder captures the canvas as it plays),
+// so this is also how long generation takes. Kept short enough to feel quick while
+// still cycling through all 8 slides at a readable pace.
+const DURATION_SECONDS = 16;
 
 /** Builds a small presentation-style preview without ever persisting frames. */
 @Injectable({ providedIn: 'root' })
