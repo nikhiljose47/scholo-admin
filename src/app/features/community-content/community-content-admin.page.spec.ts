@@ -40,7 +40,7 @@ function setup(configured = true) {
     getDraft: async () => ({
       id: 'p-aaaaaaaaaaaaaaaaaaaaaaaa', topicId: 'topic-polynomials', kind: 'new', state: 'draft', revision: 2, createdAt: '', updatedAt: '', createdByYou: true, updatedByYou: true,
       basedOnContentVersion: null, baseStale: false, lastPublish: null, publicPath: null, readiness: { publishable: false, errors: [] },
-      fields: { title: 'Half-written', slug: null, type: 'short_answer', difficulty: null, conceptSlugs: [], tags: [], statement: { format: 'markdown', text: 'Q' }, answer: null, explanation: null, options: null, diagrams: [], media: [], source: null, seoEligible: false },
+      fields: { title: 'Half-written', slug: null, type: 'short_answer', difficulty: null, conceptSlugs: [], sectionId: null, tags: [], statement: { format: 'markdown', text: 'Q' }, answer: null, explanation: null, options: null, diagrams: [], media: [], source: null, seoEligible: false },
     }),
     openForRevision: async (_t: string, id: string) => { calls.revise.push(id); return { created: true, draft: { id } }; },
   };

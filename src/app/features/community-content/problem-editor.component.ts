@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, computed, 
 import { isPlatformBrowser } from '@angular/common';
 import { DiagramComponent } from '../../shared/components/diagram/diagram.component';
 import { SafeMarkdownPipe } from '../../shared/pipes/safe-markdown.pipe';
-import { COMMUNITY_TOPICS } from './community.models';
+import { COMMUNITY_TOPICS, sectionsForTopic } from './community.models';
 import { LIMITS, PROBLEM_DIFFICULTIES, PROBLEM_TYPES } from '../../models/community-contracts/problem-library';
 import type { DraftFields } from '../../models/community-contracts/problem-draft';
 import {
@@ -54,6 +54,7 @@ export class ProblemEditorComponent {
   readonly licenses = LICENSES;
   readonly limits = LIMITS;
   readonly concepts = computed(() => COMMUNITY_TOPICS.find((t) => t.id === this.topicId())?.concepts ?? []);
+  readonly sections = computed(() => sectionsForTopic(this.topicId()));
 
   // ----- form state -----
   readonly title = signal('');
@@ -61,6 +62,7 @@ export class ProblemEditorComponent {
   readonly type = signal<string>('short_answer');
   readonly difficulty = signal('');
   readonly conceptSlugs = signal<string[]>([]);
+  readonly sectionId = signal('');
   readonly tags = signal('');
   readonly statement = signal('');
   readonly answer = signal('');
@@ -117,6 +119,7 @@ export class ProblemEditorComponent {
       type: this.type() as DraftFields['type'],
       difficulty: (this.difficulty() || null) as DraftFields['difficulty'],
       conceptSlugs: this.conceptSlugs(),
+      ...(this.sectionId() ? { sectionId: this.sectionId() } : {}),
       tags: this.tags().split(',').map((t) => t.trim()).filter(Boolean),
       statement: { format: this.formats.statement, text: this.statement() },
       answer: answerText.trim() ? { format: (isMcq ? 'text' : this.formats.answer) as Format, text: answerText } : null,
@@ -190,7 +193,7 @@ export class ProblemEditorComponent {
   }
 
   private reset(): void {
-    this.title.set(''); this.slug.set(''); this.type.set('short_answer'); this.difficulty.set(''); this.conceptSlugs.set([]);
+    this.title.set(''); this.slug.set(''); this.type.set('short_answer'); this.difficulty.set(''); this.conceptSlugs.set([]); this.sectionId.set('');
     this.tags.set(''); this.statement.set(''); this.answer.set(''); this.explanation.set(''); this.options.set([]); this.correct.set([]);
     this.diagramsJson.set(''); this.mediaIds.set(''); this.sourceType.set('original'); this.license.set('Scholo original'); this.attribution.set('');
     this.seoEligible.set(false);
@@ -204,7 +207,7 @@ export class ProblemEditorComponent {
     this.currentId.set(d.id);
     this.revision.set(d.revision);
     this.title.set(f.title); this.slug.set(f.slug ?? ''); this.type.set(f.type); this.difficulty.set(f.difficulty ?? '');
-    this.conceptSlugs.set([...f.conceptSlugs]); this.tags.set(f.tags.join(', '));
+    this.conceptSlugs.set([...f.conceptSlugs]); this.sectionId.set(f.sectionId ?? ''); this.tags.set(f.tags.join(', '));
     this.statement.set(f.statement.text); this.answer.set(f.type === 'mcq' ? '' : (f.answer?.text ?? '')); this.explanation.set(f.explanation?.text ?? '');
     this.options.set((f.options ?? []).map((o) => ({ id: o.id, text: o.text, explanation: o.explanation ?? '' })));
     this.correct.set(f.type === 'mcq' && f.answer ? f.answer.text.split(',').map((s) => s.trim()).filter(Boolean) : []);

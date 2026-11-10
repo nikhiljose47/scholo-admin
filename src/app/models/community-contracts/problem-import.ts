@@ -86,7 +86,7 @@ export function parseCsv(text: string): string[][] {
 
 export const CSV_COLUMNS = [
   'externalId', 'slug', 'type', 'difficulty', 'title', 'statement', 'answer', 'explanation',
-  'conceptSlugs', 'tags', 'options', 'diagrams', 'media', 'sourceType', 'attribution', 'license', 'seoEligible',
+  'conceptSlugs', 'sectionId', 'tags', 'options', 'diagrams', 'media', 'sourceType', 'attribution', 'license', 'seoEligible',
 ] as const;
 const REQUIRED_CSV_COLUMNS = ['externalId', 'type', 'difficulty', 'title', 'statement', 'answer', 'explanation', 'conceptSlugs', 'sourceType', 'license'];
 
@@ -156,6 +156,7 @@ export function csvToRows(text: string): ImportRow[] {
         answer: text('answer', type === 'mcq' ? 'text' : 'markdown'),
         explanation: text('explanation', 'markdown'),
         conceptSlugs: splitList(get('conceptSlugs')),
+        sectionId: get('sectionId') || null,
         tags: splitList(get('tags')).map(normalizeTag),
         options,
         diagrams,
@@ -258,7 +259,7 @@ export function titleKey(title: string): string {
 }
 
 export const EDITABLE_FIELDS = [
-  'title', 'slug', 'type', 'difficulty', 'conceptSlugs', 'tags', 'statement', 'answer',
+  'title', 'slug', 'type', 'difficulty', 'conceptSlugs', 'sectionId', 'tags', 'statement', 'answer',
   'explanation', 'options', 'diagrams', 'media', 'source', 'seoEligible',
 ] as const;
 export type EditableField = (typeof EDITABLE_FIELDS)[number];

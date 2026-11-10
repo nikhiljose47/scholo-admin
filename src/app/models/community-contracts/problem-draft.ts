@@ -33,6 +33,7 @@ export interface DraftFields {
   type: ProblemType;
   difficulty: ProblemDifficulty | null;
   conceptSlugs: string[];
+  sectionId?: string | null;
   tags: string[];
   statement: RichText;
   answer: RichText | null;
@@ -46,7 +47,7 @@ export interface DraftFields {
 
 /** The only keys a client may send. Everything else (id, topic, revision, visibility, keys, uid) is server-owned. */
 export const DRAFT_FIELD_KEYS = [
-  'title', 'slug', 'type', 'difficulty', 'conceptSlugs', 'tags', 'statement', 'answer',
+  'title', 'slug', 'type', 'difficulty', 'conceptSlugs', 'sectionId', 'tags', 'statement', 'answer',
   'explanation', 'options', 'diagrams', 'media', 'source', 'seoEligible',
 ] as const;
 
@@ -122,6 +123,18 @@ export function validateDraftFields(input: unknown, topic: TopicLike): Validatio
     for (const c of conceptsIn) {
       if (typeof c !== 'string' || !topic.concepts.some((tc) => tc.slug === c)) errors.push(`conceptSlugs contains "${String(c).slice(0, 40)}", which is not a concept of ${topic.id}`);
       else if (!conceptSlugs.includes(c)) conceptSlugs.push(c);
+    }
+  }
+
+  const rawSectionId = input['sectionId'];
+  let sectionId: string | null = null;
+  if (rawSectionId !== null && rawSectionId !== undefined && rawSectionId !== '') {
+    if (typeof rawSectionId !== 'string' || !LIMITS.idPattern.test(rawSectionId)) {
+      errors.push('sectionId must be a valid section id or null');
+    } else if (!topic.sections?.some((section) => section.id === rawSectionId && section.active !== false)) {
+      errors.push(`sectionId "${rawSectionId}" is not an active section of ${topic.id}`);
+    } else {
+      sectionId = rawSectionId;
     }
   }
 
@@ -219,6 +232,7 @@ export function validateDraftFields(input: unknown, topic: TopicLike): Validatio
     type: input['type'] as ProblemType,
     difficulty: (difficulty as ProblemDifficulty | null | undefined) ?? null,
     conceptSlugs,
+    sectionId,
     tags,
     statement: statement as RichText,
     answer,

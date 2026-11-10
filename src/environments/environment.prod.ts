@@ -12,4 +12,6 @@ export const environment = {
   syllabusApiBaseUrl: 'https://content.scholo.co.in',
   /** Community Problem Library admin UI. See content-api's ALLOWED_ORIGINS for CORS setup. */
   problemLibrary: { enabled: true, apiBase: 'https://content-api.nikhiljose47.workers.dev' },
+  /** Same content-api Worker as problemLibrary.apiBase; used for the /thumbnail upload route too. */
+  contentApiBaseUrl: 'https://content-api.nikhiljose47.workers.dev',
 };

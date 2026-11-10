@@ -67,6 +67,8 @@ export interface PreparedProblem {
   type: ProblemType;
   difficulty: ProblemDifficulty;
   conceptSlugs: string[];
+  /** Optional canonical syllabus section id; legacy items may omit it. */
+  sectionId?: string | null;
   tags: string[];
   statement: RichText;
   answer: RichText;
@@ -94,6 +96,7 @@ export interface ProblemSummary {
   type: ProblemType;
   difficulty: ProblemDifficulty;
   conceptSlugs: string[];
+  sectionId?: string | null;
   tags: string[];
   publishedAt: string;
   seoEligible: boolean;
@@ -145,6 +148,8 @@ export interface TopicLike {
   id: string;
   status?: string;
   concepts: ReadonlyArray<{ slug: string }>;
+  /** The Worker must supply this registry to validate a non-null sectionId. */
+  sections?: ReadonlyArray<{ id: string; active?: boolean }>;
 }
 
 // ---- R2 key layout (all under one prefix so existing syllabus/puzzle keys are never touched) ----
@@ -250,6 +255,18 @@ export function validatePreparedProblem(
       if (typeof c !== 'string' || !topic.concepts.some((tc) => tc.slug === c)) {
         errors.push(`conceptSlugs contains "${String(c)}", which is not a concept of ${topic.id}`);
       }
+    }
+  }
+
+  const rawSectionId = input['sectionId'];
+  let sectionId: string | null = null;
+  if (rawSectionId !== null && rawSectionId !== undefined && rawSectionId !== '') {
+    if (typeof rawSectionId !== 'string' || !LIMITS.idPattern.test(rawSectionId)) {
+      errors.push('sectionId must be a valid section id or null');
+    } else if (!topic?.sections?.some((section) => section.id === rawSectionId && section.active !== false)) {
+      errors.push(`sectionId "${rawSectionId}" is not an active section of ${String(input['topicId'])}`);
+    } else {
+      sectionId = rawSectionId;
     }
   }
 
@@ -359,6 +376,7 @@ function normalizeProblem(input: Record<string, unknown>): PreparedProblem {
     type: input['type'] as ProblemType,
     difficulty: input['difficulty'] as ProblemDifficulty,
     conceptSlugs: [...((input['conceptSlugs'] as string[] | undefined) ?? [])],
+    sectionId: typeof input['sectionId'] === 'string' && input['sectionId'] !== '' ? input['sectionId'] : null,
     tags: [...(input['tags'] as string[])],
     statement: richText(input['statement']),
     answer: richText(input['answer']),
@@ -390,6 +408,7 @@ export function toIndexEntry(p: PreparedProblem, batchId: string, contentHash: s
     type: p.type,
     difficulty: p.difficulty,
     conceptSlugs: p.conceptSlugs,
+    sectionId: p.sectionId ?? null,
     tags: p.tags,
     publishedAt: p.publishedAt as string,
     seoEligible: p.seoEligible,
@@ -409,6 +428,7 @@ export function toPublicSummary(e: ProblemIndexEntry): ProblemSummary {
     type: e.type,
     difficulty: e.difficulty,
     conceptSlugs: e.conceptSlugs,
+    sectionId: e.sectionId ?? null,
     tags: e.tags,
     publishedAt: e.publishedAt,
     seoEligible: e.seoEligible,
@@ -428,6 +448,7 @@ export function compareSummaries(a: Pick<ProblemSummary, 'publishedAt' | 'id'>, 
 export interface ListFilters {
   difficulty?: ProblemDifficulty;
   concept?: string;
+  sectionId?: string;
   tag?: string;
   q?: string;
 }
@@ -448,7 +469,7 @@ export class ApiError extends Error {
   }
 }
 
-const ALLOWED_PARAMS = new Set(['limit', 'cursor', 'difficulty', 'concept', 'tag', 'q']);
+const ALLOWED_PARAMS = new Set(['limit', 'cursor', 'difficulty', 'concept', 'sectionId', 'tag', 'q']);
 
 export function normalizeQuery(raw: string): string {
   return raw.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
@@ -482,6 +503,13 @@ export function parseListQuery(params: URLSearchParams, topic: TopicLike): ListQ
     if (!topic.concepts.some((c) => c.slug === concept)) throw new ApiError(400, 'INVALID_PARAMETER', 'unknown concept for this topic');
     filters.concept = concept;
   }
+  const sectionId = params.get('sectionId');
+  if (sectionId !== null) {
+    if (!LIMITS.idPattern.test(sectionId) || !topic.sections?.some((section) => section.id === sectionId && section.active !== false)) {
+      throw new ApiError(400, 'INVALID_PARAMETER', 'unknown sectionId for this topic');
+    }
+    filters.sectionId = sectionId;
+  }
   const tag = params.get('tag');
   if (tag !== null) {
     if (!LIMITS.tagPattern.test(tag)) throw new ApiError(400, 'INVALID_PARAMETER', 'invalid tag');
@@ -501,7 +529,7 @@ export function parseListQuery(params: URLSearchParams, topic: TopicLike): ListQ
 }
 
 export function filterFingerprint(filters: ListFilters): string {
-  return JSON.stringify([filters.difficulty ?? '', filters.concept ?? '', filters.tag ?? '', filters.q ?? '']);
+  return JSON.stringify([filters.difficulty ?? '', filters.concept ?? '', filters.sectionId ?? '', filters.tag ?? '', filters.q ?? '']);
 }
 
 interface CursorPayload {
@@ -561,6 +589,7 @@ function haystacks(items: ProblemIndexEntry[]): string[] {
 function matches(item: ProblemIndexEntry, f: ListFilters, haystack: string | undefined): boolean {
   if (f.difficulty && item.difficulty !== f.difficulty) return false;
   if (f.concept && !item.conceptSlugs.includes(f.concept)) return false;
+  if (f.sectionId && item.sectionId !== f.sectionId) return false;
   if (f.tag && !item.tags.includes(f.tag)) return false;
   if (f.q) {
     const text = haystack ?? normalizeQuery(`${item.title} ${item.tags.join(' ')}`);

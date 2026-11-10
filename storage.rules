@@ -11,20 +11,16 @@ service firebase.storage {
         && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ['admin', 'teacher'];
     }
 
-    // Temporary source images and the generated live-class preview.
+    // Temporary source images for a live class. The generated preview video
+    // moved to the content-api Worker + R2 bucket (scholo-content) — see
+    // docs/live-class-preview.md.
     match /live-class/{meetingId}/{file} {
       allow read: if true;
 
       allow create, update: if isStaff()
-                            && (
-                              (file.matches('[1-8]\.webp')
-                               && request.resource.contentType.matches('image/.*')
-                               && request.resource.size < 500 * 1024)
-                              ||
-                              (file.matches('preview\.(webm|mp4)')
-                               && request.resource.contentType.matches('video/.*')
-                               && request.resource.size < 500 * 1024)
-                            );
+                            && file.matches('[1-8]\.webp')
+                            && request.resource.contentType.matches('image/.*')
+                            && request.resource.size < 500 * 1024;
 
       allow delete: if isStaff();
     }

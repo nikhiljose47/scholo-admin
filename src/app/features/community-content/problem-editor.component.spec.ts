@@ -15,7 +15,7 @@ function dto(over: Partial<DraftDto> & { fields?: Partial<DraftFields> } = {}): 
     basedOnContentVersion: null, baseStale: false, lastPublish: null, publicPath: null,
     readiness: { publishable: false, errors: [{ field: 'answer', message: 'answer is required to publish' }] },
     fields: {
-      title: 'T', slug: null, type: 'short_answer', difficulty: null, conceptSlugs: [], tags: [],
+      title: 'T', slug: null, type: 'short_answer', difficulty: null, conceptSlugs: [], sectionId: null, tags: [],
       statement: { format: 'markdown', text: 'Q' }, answer: null, explanation: null, options: null, diagrams: [], media: [], source: null,
       seoEligible: false, ...fields,
     },
@@ -111,6 +111,18 @@ describe('ProblemEditorComponent', () => {
     expect(calls.save.length).toBe(1);
     expect(calls.save[0].revision).toBe(1);
     expect(ed.revision()).toBe(2);
+  });
+
+  it('includes an optional sectionId in the draft payload without changing conceptSlugs', async () => {
+    const { fixture, calls, el, ed } = setup();
+    await settle(fixture);
+    type(el.querySelector('input')!, 'Section-linked problem');
+    type(el.querySelector('textarea')!, 'Question');
+    ed.sectionId.set('section-poly-1-1');
+    btn(el, 'Save draft')!.click();
+    await settle(fixture);
+    expect(calls.create[0].fields.sectionId).toBe('section-poly-1-1');
+    expect(calls.create[0].fields.conceptSlugs).toEqual([]);
   });
 
   it('keeps Publish disabled until the saved copy is publishable, and explains what is missing', async () => {

@@ -10,22 +10,27 @@ sequence is shuffled, so “Generate another version” looks different.
 The admin browser renders the presentation directly to a 160 x 160 canvas and
 records it at 10 FPS. No intermediate frames are stored. The resulting video is
 normally WebM/VP9; Safari may generate MP4 when WebM recording is unavailable.
-It is uploaded as one file:
+It is uploaded via the `content-api` Cloudflare Worker's `PUT /thumbnail` route
+(see `C:\tmp\free-online-tutor\content-api`), which verifies the staff member's
+Firebase ID token and writes to the `scholo-content` R2 bucket as one object:
 
 ```
-live-class/{meetingId}/preview.webm
+thumbnails/classes/{meetingId}.webm
 ```
 
 or, on the Safari fallback:
 
 ```
-live-class/{meetingId}/preview.mp4
+thumbnails/classes/{meetingId}.mp4
 ```
 
-The meeting stores its public URL and measured video metadata in `livePreview`.
-Original selected photos remain local when the generated preview is used, so the
-learner app needs only the final video. The legacy `liveImages` flow remains
-available for meetings that do not use a generated preview.
+It is then served publicly from `https://content.scholo.co.in/thumbnails/classes/{meetingId}.{webm|mp4}`
+(the same CDN custom domain already used for syllabus content), with no
+separate download-URL step. The meeting stores that public URL and measured
+video metadata in `livePreview`. Original selected photos remain local when
+the generated preview is used, so the learner app needs only the final video.
+The legacy `liveImages` flow (Firebase Storage, `live-class/{meetingId}/{slot}.webp`)
+remains available for meetings that do not use a generated preview.
 
 ## Learner app contract
 
@@ -39,16 +44,20 @@ If the card needs a slower, calmer feel without creating a larger upload, set
 the video element's `playbackRate` after its metadata has loaded. Use `0.75` as
 the default; do not go below `0.5` for a live-card loop.
 
-The preview is intentionally temporary: it lives under `live-class/`, which may
-already have a one-day storage lifecycle policy. If previews should remain after
-the live session, move them to a permanent storage prefix and update the rules
-and lifecycle policy accordingly.
+The preview is intentionally temporary: thumbnails under `thumbnails/classes/`
+are deleted manually (no automatic expiry/lifecycle rule or cron job). If
+previews should persist, add an explicit retention/versioning scheme rather
+than relying on same-name overwrite.
 
-## Storage deployment
+## Upload authorization
 
-`storage.rules` must be deployed for staff to upload `preview.webm`/`preview.mp4`.
-The rule permits videos under 500 KB, which is deliberately above the expected
-roughly 80–150 KB output while still protecting the bucket from large uploads.
+The `content-api` Worker's `PUT /thumbnail` route requires a valid Firebase
+ID token for a user whose Firestore `users/{uid}.role` is `admin` or `teacher`
+(checked via an authenticated Firestore REST read using that same token — no
+separate service-account credential). It also enforces the 500 KB cap and
+`video/webm`/`video/mp4` content type server-side, deliberately above the
+expected roughly 80–150 KB output while still protecting the bucket from large
+uploads.
 
 ## MP4 compatibility
 

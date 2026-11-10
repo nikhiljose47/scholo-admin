@@ -59,6 +59,19 @@
         <span class="pe-err" role="alert">@for (e of errorsFor('conceptSlugs'); track $index) { <span>{{ e }}</span> }</span>
       </fieldset>
 
+      @if (sections().length) {
+        <label class="pe-field">
+          <span>Learning section <small>(optional)</small></span>
+          <select [value]="sectionId()" (change)="sectionId.set($any($event.target).value)" aria-describedby="pe-err-section">
+            <option value="">No section</option>
+            @for (section of sections(); track section.id) {
+              <option [value]="section.id">{{ section.number }} — {{ section.title }}</option>
+            }
+          </select>
+          <span id="pe-err-section" class="pe-err" role="alert">@for (e of errorsFor('sectionId'); track $index) { <span>{{ e }}</span> }</span>
+        </label>
+      }
+
       <label class="pe-field">
         <span>Tags <small>(comma separated)</small></span>
         <input [value]="tags()" (input)="tags.set($any($event.target).value)" aria-describedby="pe-err-tags" />

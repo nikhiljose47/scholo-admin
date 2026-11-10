@@ -23,6 +23,16 @@ export interface CommunityConcept {
   difficulty: 'foundation' | 'core' | 'advanced';
 }
 
+/** A verified syllabus section belonging to one Community topic. */
+export interface CommunitySection {
+  id: string;
+  number: string;
+  groupNumber: string;
+  title: string;
+  sortOrder: number;
+  active: boolean;
+}
+
 export interface CommunityTopic {
   id: string;
   subjectId: string;
@@ -160,6 +170,20 @@ export const COMMUNITY_TOPICS: CommunityTopic[] = [
     starterPrompt: 'What does it mean for a structure to be in equilibrium?',
   },
 ];
+
+/**
+ * Fill this registry only from the canonical syllabus/section source. It is
+ * deliberately empty until those stable ids are supplied; inventing numbers
+ * here would create links the Worker cannot safely validate.
+ */
+export const COMMUNITY_SECTION_REGISTRY: Readonly<Record<string, readonly CommunitySection[]>> =
+  Object.fromEntries(COMMUNITY_TOPICS.map(topic => [topic.id, []]));
+
+export function sectionsForTopic(topicId: string): readonly CommunitySection[] {
+  return [...(COMMUNITY_SECTION_REGISTRY[topicId] ?? [])]
+    .filter(section => section.active)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+}
 
 export function getPublishedCommunityTopics(): CommunityTopic[] {
   return COMMUNITY_TOPICS.filter((topic) => topic.status === 'published');
