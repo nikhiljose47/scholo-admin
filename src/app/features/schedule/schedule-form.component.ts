@@ -44,34 +44,38 @@ interface ImageItem {
     <!-- Confirm modal -->
     <div class="modal-backdrop" *ngIf="confirmPayload()" (click)="confirmCancel()">
       <div class="modal-box" (click)="$event.stopPropagation()">
-        <div class="modal-icon-wrap">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
-            <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-          </svg>
+        <div class="modal-heading">
+          <div class="modal-icon-wrap">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+          </div>
+          <h2 class="modal-title">Confirm Schedule</h2>
         </div>
-        <h2 class="modal-title">Confirm Schedule</h2>
-        <video *ngIf="preview() as generated" class="modal-preview" [src]="generated.url" muted loop autoplay playsinline controls></video>
-        <div class="modal-rows">
-          <div class="modal-row">
-            <span class="mrow-label">Class</span>
-            <span class="mrow-value">{{ confirmPayload()!.className }}</span>
-          </div>
-          <div class="modal-row">
-            <span class="mrow-label">Chapter</span>
-            <span class="mrow-value">{{ confirmPayload()!.chapter }}</span>
-          </div>
-          <div class="modal-row" *ngIf="confirmPayload()!.division">
-            <span class="mrow-label">Division</span>
-            <span class="mrow-value">{{ confirmPayload()!.division }}</span>
-          </div>
-          <div class="modal-row">
-            <span class="mrow-label">Time</span>
-            <span class="mrow-value">{{ confirmPayload()!.time }} IST</span>
-          </div>
-          <div class="modal-row">
-            <span class="mrow-label">Duration</span>
-            <span class="mrow-value">{{ confirmPayload()!.duration }} min</span>
+        <div class="modal-card">
+          <video *ngIf="preview() as generated" class="modal-thumb" [src]="generated.url" muted loop autoplay playsinline></video>
+          <div class="modal-details">
+            <div class="mrow">
+              <span class="mrow-label">Class</span>
+              <span class="mrow-value">{{ confirmPayload()!.className }}</span>
+            </div>
+            <div class="mrow">
+              <span class="mrow-label">Chapter</span>
+              <span class="mrow-value">{{ confirmPayload()!.chapter }}</span>
+            </div>
+            <div class="mrow" *ngIf="confirmPayload()!.division">
+              <span class="mrow-label">Division</span>
+              <span class="mrow-value">{{ confirmPayload()!.division }}</span>
+            </div>
+            <div class="mrow">
+              <span class="mrow-label">Time</span>
+              <span class="mrow-value">{{ confirmPayload()!.time }} IST</span>
+            </div>
+            <div class="mrow">
+              <span class="mrow-label">Duration</span>
+              <span class="mrow-value">{{ confirmPayload()!.duration }} min</span>
+            </div>
           </div>
         </div>
         <div class="modal-actions">
@@ -439,22 +443,26 @@ interface ImageItem {
     }
     @keyframes slide-up { from { transform: translateY(12px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
+    .modal-heading { display: flex; align-items: center; gap: 10px; }
     .modal-icon-wrap {
-      width: 48px; height: 48px;
-      border-radius: 12px;
+      width: 36px; height: 36px; flex-shrink: 0;
+      border-radius: 10px;
       background: var(--brand-subtle, rgba(99,102,241,.1));
       color: var(--brand);
       display: flex; align-items: center; justify-content: center;
     }
 
     .modal-title { margin: 0; font-size: 17px; font-weight: 700; color: var(--text-primary); }
-    .modal-preview { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 10px; background: #172554; }
 
-    .modal-rows { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border-subtle); border-radius: 10px; overflow: hidden; }
-    .modal-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 9px 14px; border-bottom: 1px solid var(--border-subtle); }
-    .modal-row:last-child { border-bottom: none; }
-    .mrow-label { font-size: 12px; font-weight: 600; color: var(--text-muted); flex-shrink: 0; padding-top: 1px; }
-    .mrow-value { font-size: 13px; color: var(--text-primary); text-align: right; font-weight: 500; }
+    .modal-card { display: flex; gap: 12px; align-items: flex-start; border: 1px solid var(--border-subtle); border-radius: 10px; padding: 10px; }
+    .modal-thumb { width: 56px; height: 56px; flex-shrink: 0; object-fit: cover; border-radius: 8px; background: #172554; }
+    .modal-details { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }
+    .mrow { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+    .mrow-label { font-size: 11px; font-weight: 600; color: var(--text-muted); flex-shrink: 0; }
+    .mrow-value {
+      font-size: 12px; color: var(--text-primary); text-align: right; font-weight: 500;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+    }
 
     .modal-actions { display: flex; gap: 10px; }
     .modal-cancel {
